@@ -1,0 +1,6 @@
+{
+  "name": "Master Admin Panel",
+  "description": "A powerful, fully-featured administrative control system for managing orders, customers, vendors, riders, live tracking, payments, commissions, deliveries, and marketing systems.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
