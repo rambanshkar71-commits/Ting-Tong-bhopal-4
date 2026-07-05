@@ -77,6 +77,11 @@ export const INITIAL_VENDORS: Vendor[] = [
     walletBalance: 18450,
     rating: 4.6,
     address: 'Zone-II, Maharana Pratap Nagar, Bhopal',
+    shopPhoto: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500&auto=format&fit=crop&q=80',
+    fssaiNumber: '10421000889213',
+    bankAccountNo: '30998827110',
+    bankIfsc: 'SBIN0003290',
+    bankName: 'State Bank of India',
     menu: [
       { id: 'M-101', name: 'Veg Cheese Sandwich', price: 120, isAvailable: true, category: 'Sandwiches' },
       { id: 'M-102', name: 'Paneer Butter Masala Combo', price: 210, isAvailable: true, category: 'Main Course' },
@@ -97,6 +102,11 @@ export const INITIAL_VENDORS: Vendor[] = [
     walletBalance: 32900,
     rating: 4.8,
     address: 'Hamidia Road & MP Nagar Zone-I, Bhopal',
+    shopPhoto: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500&auto=format&fit=crop&q=80',
+    fssaiNumber: '10420000552918',
+    bankAccountNo: '50100224488992',
+    bankIfsc: 'HDFC0000104',
+    bankName: 'HDFC Bank',
     menu: [
       { id: 'M-201', name: 'Special Chola Bhatura', price: 160, isAvailable: true, category: 'Breakfast' },
       { id: 'M-202', name: 'Raj Kachori', price: 95, isAvailable: true, category: 'Chaat' },
@@ -117,6 +127,11 @@ export const INITIAL_VENDORS: Vendor[] = [
     walletBalance: 9800,
     rating: 4.3,
     address: 'New Market, TT Nagar, Bhopal',
+    shopPhoto: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=500&auto=format&fit=crop&q=80',
+    fssaiNumber: '10419000112284',
+    bankAccountNo: '042010100088921',
+    bankIfsc: 'UTIB0000420',
+    bankName: 'Axis Bank',
     menu: [
       { id: 'M-301', name: 'Mutton Cutlet (2 Pcs)', price: 180, isAvailable: true, category: 'Snacks' },
       { id: 'M-302', name: 'Vegetable Cutlet', price: 110, isAvailable: true, category: 'Snacks' },
@@ -137,6 +152,11 @@ export const INITIAL_VENDORS: Vendor[] = [
     walletBalance: 12200,
     rating: 4.4,
     address: 'Indrapuri C-Sector, BHEL, Bhopal',
+    shopPhoto: 'https://images.unsplash.com/photo-1543007630-9710e4a00a20?w=500&auto=format&fit=crop&q=80',
+    fssaiNumber: '10422000994821',
+    bankAccountNo: '918020042288102',
+    bankIfsc: 'ICIC0000918',
+    bankName: 'ICICI Bank',
     menu: [
       { id: 'M-401', name: 'Veg Manchurian Dry', price: 130, isAvailable: true, category: 'Chinese' },
       { id: 'M-402', name: 'Paneer Fried Rice', price: 140, isAvailable: true, category: 'Chinese' },
@@ -156,6 +176,11 @@ export const INITIAL_VENDORS: Vendor[] = [
     walletBalance: 0,
     rating: 4.2,
     address: 'Arera Colony, E-7, Bhopal',
+    shopPhoto: 'https://images.unsplash.com/photo-1517433456452-f9633a875f6f?w=500&auto=format&fit=crop&q=80',
+    fssaiNumber: '10423000642918',
+    bankAccountNo: '10082722104',
+    bankIfsc: 'SBIN0000382',
+    bankName: 'State Bank of India',
     menu: [
       { id: 'M-501', name: 'Red Velvet Pastry', price: 110, isAvailable: true, category: 'Cakes' },
       { id: 'M-502', name: 'Chocolate Truffle Cake (Half KG)', price: 450, isAvailable: true, category: 'Cakes' }
@@ -181,7 +206,11 @@ export const INITIAL_RIDERS: Rider[] = [
     earnings: 2840,
     rating: 4.9,
     currentLocation: { x: 70, y: 53 }, // Near MP Nagar
-    assignedShifts: ['Morning (07:00 AM - 03:00 PM)', 'Evening (03:00 PM - 11:00 PM)']
+    assignedShifts: ['Morning (07:00 AM - 03:00 PM)', 'Evening (03:00 PM - 11:00 PM)'],
+    bankAccountNo: '912010048229103',
+    bankIfsc: 'UTIB0000420',
+    bankName: 'Axis Bank',
+    employeeId: 'TTB-2026-0201'
   },
   {
     id: 'RDR-202',
@@ -200,7 +229,11 @@ export const INITIAL_RIDERS: Rider[] = [
     earnings: 1950,
     rating: 4.7,
     currentLocation: { x: 62, y: 65 }, // Near Bittan Market
-    assignedShifts: ['Morning (07:00 AM - 03:00 PM)']
+    assignedShifts: ['Morning (07:00 AM - 03:00 PM)'],
+    bankAccountNo: '30827110992',
+    bankIfsc: 'SBIN0000382',
+    bankName: 'State Bank of India',
+    employeeId: 'TTB-2026-0202'
   },
   {
     id: 'RDR-203',
@@ -219,7 +252,11 @@ export const INITIAL_RIDERS: Rider[] = [
     earnings: 1120,
     rating: 4.5,
     currentLocation: { x: 42, y: 88 }, // Near Kolar Road
-    assignedShifts: ['Evening (03:00 PM - 11:00 PM)']
+    assignedShifts: ['Evening (03:00 PM - 11:00 PM)'],
+    bankAccountNo: '50100449911228',
+    bankIfsc: 'HDFC0000104',
+    bankName: 'HDFC Bank',
+    employeeId: 'TTB-2026-0203'
   },
   {
     id: 'RDR-204',
@@ -238,7 +275,11 @@ export const INITIAL_RIDERS: Rider[] = [
     earnings: 0,
     rating: 0,
     currentLocation: { x: 80, y: 28 }, // Near Indrapuri
-    assignedShifts: []
+    assignedShifts: [],
+    bankAccountNo: '203911029441',
+    bankIfsc: 'BKID0009012',
+    bankName: 'Bank of India',
+    employeeId: 'TTB-2026-0204'
   }
 ];
 
@@ -512,8 +553,8 @@ export const INITIAL_NOTIFICATIONS: NotificationLog[] = [
 
 export const INITIAL_SYSTEM_SETTINGS: SystemSettings = {
   logoUrl: 'https://images.unsplash.com/photo-1543007630-9710e4a00a20?w=80&auto=format&fit=crop&q=80',
-  companyName: 'Bhopal Express Logistics',
-  supportEmail: 'support@bhopalexpress.in',
+  companyName: 'Ting Tong Bhopal',
+  supportEmail: 'support@tingtongbhopal.in',
   supportPhone: '+91 755 4901234',
   bhopalOfficeAddress: 'Plot 42, Sector C, Govindpura Industrial Area, Bhopal, MP - 462023',
   roles: [

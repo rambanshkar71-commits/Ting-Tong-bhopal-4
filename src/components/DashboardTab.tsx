@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Customer, Vendor, Rider, Order } from '../types';
 import { Language, TRANSLATIONS } from '../lib/translations';
 import { 
@@ -109,6 +110,13 @@ export default function DashboardTab(props: DashboardTabProps) {
       remarks: 'Fuel & distance payout'
     }
   ]);
+
+  // Wallet Transaction History filter states
+  const [txnSearch, setTxnSearch] = useState('');
+  const [txnFilterType, setTxnFilterType] = useState<'all' | 'credit' | 'debit'>('all');
+  const [txnFilterRole, setTxnFilterRole] = useState<'all' | 'Customer' | 'Vendor' | 'Rider'>('all');
+  const [txnFilterDatePreset, setTxnFilterDatePreset] = useState<'all' | 'today' | 'yesterday' | '7days' | 'custom'>('all');
+  const [txnFilterCustomDate, setTxnFilterCustomDate] = useState('');
 
   // Alert Banner message
   const [alertMessage, setAlertMessage] = useState<{ text: string; type: 'success' | 'info' } | null>(null);
@@ -308,6 +316,62 @@ export default function DashboardTab(props: DashboardTabProps) {
   const selectedVendorObj = vendors.find(v => v.id === selectedVendorId);
   const selectedRiderObj = riders.find(r => r.id === selectedRiderId);
 
+  // Filtered transactions for the ledger table
+  const filteredTransactions = adminTransactions.filter((txn) => {
+    // 1. Search Query Match (target name or remarks)
+    if (txnSearch.trim() !== '') {
+      const query = txnSearch.toLowerCase();
+      const matchName = txn.targetName.toLowerCase().includes(query);
+      const matchRemarks = txn.remarks.toLowerCase().includes(query);
+      const matchId = txn.id.toLowerCase().includes(query);
+      if (!matchName && !matchRemarks && !matchId) return false;
+    }
+
+    // 2. Type Filter Match (Credit/Debit)
+    const isCredit = txn.type === 'Wallet Deposit';
+    if (txnFilterType === 'credit' && !isCredit) return false;
+    if (txnFilterType === 'debit' && isCredit) return false;
+
+    // 3. Role Filter Match (Customer / Vendor / Rider)
+    if (txnFilterRole !== 'all' && txn.targetRole !== txnFilterRole) return false;
+
+    // 4. Date Filter Match
+    if (txnFilterDatePreset !== 'all') {
+      const lowercaseTime = txn.timestamp.toLowerCase();
+      const isJustNow = lowercaseTime.includes('just now');
+      const isToday = lowercaseTime.includes('today') || isJustNow;
+      const isYesterday = lowercaseTime.includes('yesterday');
+
+      if (txnFilterDatePreset === 'today' && !isToday) return false;
+      if (txnFilterDatePreset === 'yesterday' && !isYesterday) return false;
+      if (txnFilterDatePreset === '7days') {
+        const isRecent = isToday || isYesterday || lowercaseTime.includes('days ago') || lowercaseTime.includes('day ago') || lowercaseTime.includes('am') || lowercaseTime.includes('pm') || isJustNow;
+        if (!isRecent) return false;
+      }
+      if (txnFilterDatePreset === 'custom' && txnFilterCustomDate) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        let txnDateStr = '';
+        if (isToday) {
+          txnDateStr = todayStr;
+        } else if (isYesterday) {
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          txnDateStr = yesterday.toISOString().split('T')[0];
+        } else {
+          const match = txn.timestamp.match(/\d{4}-\d{2}-\d{2}/);
+          if (match) {
+            txnDateStr = match[0];
+          }
+        }
+        if (txnDateStr && txnDateStr !== txnFilterCustomDate) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  });
+
   return (
     <div className="space-y-6" id="dashboard-tab-container">
       
@@ -356,7 +420,7 @@ export default function DashboardTab(props: DashboardTabProps) {
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-              {activeLanguage === 'hi' ? 'भोपाल एक्सप्रेस लॉजिस्टिक्स हब' : 'Bhopal Express Logistics Hub'}
+              {activeLanguage === 'hi' ? 'टिंग टोंग भोपाल' : 'Ting Tong Bhopal'}
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 max-w-xl leading-relaxed">
               {activeLanguage === 'hi' 
@@ -382,7 +446,11 @@ export default function DashboardTab(props: DashboardTabProps) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5" id="kpi-grid">
         
         {/* KPI 1: Gross Sales */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group" id="kpi-revenue">
+        <Link 
+          to="/reports/revenue"
+          className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group cursor-pointer hover:-translate-y-1" 
+          id="kpi-revenue"
+        >
           <div className="absolute top-0 left-0 w-2 h-full bg-emerald-500"></div>
           <div className="flex justify-between items-start">
             <div className="space-y-1">
@@ -401,10 +469,14 @@ export default function DashboardTab(props: DashboardTabProps) {
             </span>
             <span>{activeLanguage === 'hi' ? 'दैनिक लेनदेन गति' : 'daily transaction velocity'}</span>
           </div>
-        </div>
+        </Link>
 
         {/* KPI 2: Net Commissions & Platform Fees */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group" id="kpi-commission">
+        <Link 
+          to="/finance/commission"
+          className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group cursor-pointer hover:-translate-y-1" 
+          id="kpi-commission"
+        >
           <div className="absolute top-0 left-0 w-2 h-full bg-indigo-500"></div>
           <div className="flex justify-between items-start">
             <div className="space-y-1">
@@ -421,10 +493,14 @@ export default function DashboardTab(props: DashboardTabProps) {
             <span className="font-bold text-indigo-600">₹{Math.floor(totalCommission * 0.18)} GST</span>
             <span>{activeLanguage === 'hi' ? 'प्लेटफॉर्म शुल्क में शामिल' : 'included in platform charges'}</span>
           </div>
-        </div>
+        </Link>
 
         {/* KPI 3: Orders pipeline */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group" id="kpi-total-orders">
+        <Link 
+          to="/orders/all-orders"
+          className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group cursor-pointer hover:-translate-y-1" 
+          id="kpi-total-orders"
+        >
           <div className="absolute top-0 left-0 w-2 h-full bg-blue-500"></div>
           <div className="flex justify-between items-start">
             <div className="space-y-1">
@@ -442,10 +518,14 @@ export default function DashboardTab(props: DashboardTabProps) {
             <span className="h-3 w-[1px] bg-slate-200"></span>
             <span className="text-rose-600 font-bold">{orders.filter(o => o.status === 'Cancelled').length} {activeLanguage === 'hi' ? 'रद्द हुआ' : 'Cancelled'}</span>
           </div>
-        </div>
+        </Link>
 
         {/* KPI 4: Live active pipeline */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group" id="kpi-live-orders">
+        <Link 
+          to="/orders/live-tracking"
+          className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group cursor-pointer hover:-translate-y-1" 
+          id="kpi-live-orders"
+        >
           <div className="absolute top-0 left-0 w-2 h-full bg-amber-500"></div>
           <div className="flex justify-between items-start">
             <div className="space-y-1">
@@ -465,7 +545,7 @@ export default function DashboardTab(props: DashboardTabProps) {
             </span>
             <span>{activeLanguage === 'hi' ? 'पारगमन में है' : 'currently in transit'}</span>
           </div>
-        </div>
+        </Link>
 
       </div>
 
@@ -523,6 +603,142 @@ export default function DashboardTab(props: DashboardTabProps) {
           </div>
         </div>
 
+      </div>
+
+      {/* 
+        COMPANY WALLET, DAY-WEEKLY-MONTHLY INCOME PAYOUT TRANSITIONS & HISTORY
+        Specifically requested by the user.
+      */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-150 shadow-sm space-y-6 animate-fadeIn" id="company-wallet-transitions">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4 border-slate-100">
+          <div>
+            <h3 className="font-extrabold text-slate-800 text-base flex items-center gap-2">
+              <span className="text-orange-500">🏢</span> Company Wallet & Income Payout Transitions
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">Track Ting Tong Bhopal official treasury balances, daily/weekly/monthly payouts, and consolidate system finances.</p>
+          </div>
+          {/* Company Wallet Balance Indicator */}
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl px-5 py-3 flex items-center gap-3 shrink-0">
+            <div className="bg-orange-500 text-white p-2.5 rounded-xl">
+              <Wallet size={18} />
+            </div>
+            <div>
+              <span className="text-[10px] text-orange-700 font-bold uppercase tracking-wider block">Company Treasury Wallet</span>
+              <span className="text-lg font-extrabold text-slate-800 font-mono">₹{(totalCommission * 0.95 + 124500).toLocaleString('en-IN')}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Day, Weekly, Monthly Income & Payout Panels */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Day Metrics */}
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 hover:border-orange-200 transition-all flex flex-col justify-between gap-4">
+            <div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Today's Income</span>
+                <span className="text-[9px] bg-orange-100 text-orange-700 border border-orange-200 px-1.5 py-0.5 rounded font-bold uppercase font-mono">Day Cycle</span>
+              </div>
+              <div className="mt-2.5 space-y-1">
+                <p className="text-2xl font-extrabold text-slate-800 font-mono">₹{(totalCommission * 0.15 + 3820).toLocaleString('en-IN')}</p>
+                <p className="text-[10px] text-slate-500">Commissions: <strong className="text-slate-700">₹{Math.floor(totalCommission * 0.11)}</strong> | Delivery Fees: <strong className="text-slate-700">₹1,850</strong></p>
+              </div>
+            </div>
+            <div className="pt-2 border-t border-slate-200/50 flex justify-between items-center text-[10px]">
+              <span className="text-slate-400 font-semibold">Today's Settlements:</span>
+              <span className="font-bold text-emerald-600">₹2,450 paid out</span>
+            </div>
+          </div>
+
+          {/* Weekly Metrics */}
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 hover:border-orange-200 transition-all flex flex-col justify-between gap-4">
+            <div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Weekly Income</span>
+                <span className="text-[9px] bg-indigo-100 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded font-bold uppercase font-mono">Week Cycle</span>
+              </div>
+              <div className="mt-2.5 space-y-1">
+                <p className="text-2xl font-extrabold text-slate-800 font-mono">₹{(totalCommission * 0.72 + 28400).toLocaleString('en-IN')}</p>
+                <p className="text-[10px] text-slate-500">Commissions: <strong className="text-slate-700">₹{Math.floor(totalCommission * 0.55)}</strong> | Delivery Fees: <strong className="text-slate-700">₹14,200</strong></p>
+              </div>
+            </div>
+            <div className="pt-2 border-t border-slate-200/50 flex justify-between items-center text-[10px]">
+              <span className="text-slate-400 font-semibold">Weekly Settlements:</span>
+              <span className="font-bold text-indigo-600">₹18,500 paid out</span>
+            </div>
+          </div>
+
+          {/* Monthly Metrics */}
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 hover:border-orange-200 transition-all flex flex-col justify-between gap-4">
+            <div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Monthly Income</span>
+                <span className="text-[9px] bg-purple-100 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded font-bold uppercase font-mono">Month Cycle</span>
+              </div>
+              <div className="mt-2.5 space-y-1">
+                <p className="text-2xl font-extrabold text-slate-800 font-mono">₹{(totalCommission * 2.8 + 114500).toLocaleString('en-IN')}</p>
+                <p className="text-[10px] text-slate-500">Commissions: <strong className="text-slate-700">₹{Math.floor(totalCommission * 2.1)}</strong> | Delivery Fees: <strong className="text-slate-700">₹56,400</strong></p>
+              </div>
+            </div>
+            <div className="pt-2 border-t border-slate-200/50 flex justify-between items-center text-[10px]">
+              <span className="text-slate-400 font-semibold">Monthly Settlements:</span>
+              <span className="font-bold text-purple-600">₹84,200 paid out</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Dynamic Transition / Settlement Trigger Panel */}
+        <div className="bg-orange-50/50 border border-orange-100 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h4 className="font-extrabold text-slate-800 text-sm flex items-center gap-1.5">
+              <span>🔄</span> Instant Settlement Transition Processor
+            </h4>
+            <p className="text-xs text-slate-500">Trigger standard system payouts for outstanding vendor commissions and rider hours, and lock current Day/Week/Month ledger status.</p>
+          </div>
+          <div className="flex items-center gap-2.5 w-full md:w-auto">
+            <button
+              type="button"
+              onClick={() => {
+                const nextTxnId = `SETTLE-D-${Math.floor(1000 + Math.random() * 9000)}`;
+                const newTxn: AdminTransaction = {
+                  id: nextTxnId,
+                  type: 'Vendor Payout',
+                  targetName: 'Ting Tong Bhopal consolidated Daily payout',
+                  targetRole: 'Vendor',
+                  amount: 14500,
+                  timestamp: 'Just now',
+                  status: 'Completed',
+                  remarks: 'Automated Daily Settlement transition completed successfully'
+                };
+                setAdminTransactions([newTxn, ...adminTransactions]);
+                triggerAlert('Successfully executed consolidated Daily Settlement Transition of ₹14,500 to active merchant accounts!');
+              }}
+              className="flex-1 md:flex-none px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl text-xs transition-all shadow-3xs"
+            >
+              Consolidate Today (Day)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const nextTxnId = `SETTLE-W-${Math.floor(1000 + Math.random() * 9000)}`;
+                const newTxn: AdminTransaction = {
+                  id: nextTxnId,
+                  type: 'Vendor Payout',
+                  targetName: 'Ting Tong Bhopal consolidated Weekly payout',
+                  targetRole: 'Vendor',
+                  amount: 88400,
+                  timestamp: 'Just now',
+                  status: 'Completed',
+                  remarks: 'Automated Weekly Settlement transition completed successfully'
+                };
+                setAdminTransactions([newTxn, ...adminTransactions]);
+                triggerAlert('Successfully executed consolidated Weekly Settlement Transition of ₹88,400 to active merchant accounts!');
+              }}
+              className="flex-1 md:flex-none px-4 py-2 bg-slate-900 hover:bg-slate-850 text-white font-bold rounded-xl text-xs transition-all shadow-3xs border border-slate-800"
+            >
+              Consolidate Week
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* 
@@ -1201,53 +1417,306 @@ export default function DashboardTab(props: DashboardTabProps) {
           </div>
         </div>
 
-        {/* Live Admin Audit & Ledger Log */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm flex flex-col justify-between">
+        {/* Financial Status & Treasury Overview */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm flex flex-col justify-between" id="financial-treasury-overview">
           <div>
             <h4 className="font-extrabold text-slate-800 flex items-center gap-1.5 text-base mb-4 border-b pb-3 border-slate-100">
-              <Layers size={18} className="text-indigo-600" />
-              Real-time Administrative Audit Ledger
+              <Building size={18} className="text-orange-500" />
+              {activeLanguage === 'hi' ? 'वित्तीय खजाना और संतुलन' : 'Treasury & Balance Overview'}
             </h4>
             
-            <div className="space-y-3 max-h-[290px] overflow-y-auto pr-1" id="ledger-transactions-list">
-              {adminTransactions.map((txn) => {
-                let badgeColor = 'text-indigo-700 bg-indigo-50 border-indigo-100';
-                if (txn.type === 'Vendor Payout') badgeColor = 'text-emerald-700 bg-emerald-50 border-emerald-100';
-                if (txn.type === 'Rider Settlement') badgeColor = 'text-amber-700 bg-amber-50 border-amber-100';
-                if (txn.type === 'Wallet Deduction') badgeColor = 'text-rose-700 bg-rose-50 border-rose-100';
+            <div className="space-y-4">
+              {/* Treasury Balance */}
+              <div className="p-3 bg-orange-50/50 rounded-xl border border-orange-100 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-orange-700 font-bold uppercase tracking-wider block">
+                    {activeLanguage === 'hi' ? 'कंपनी तिजोरी' : 'Company Treasury'}
+                  </span>
+                  <span className="text-base font-extrabold text-slate-800 font-mono mt-0.5">
+                    ₹{(totalCommission * 0.95 + 124500).toLocaleString('en-IN')}
+                  </span>
+                </div>
+                <div className="h-2 w-2 bg-emerald-500 rounded-full animate-ping" />
+              </div>
 
-                return (
-                  <div key={txn.id} className="p-3 bg-slate-50 rounded-xl border border-slate-150 flex flex-col justify-between text-xs gap-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono font-bold text-slate-400 text-[10px]">{txn.id}</span>
-                      <span className={`px-2 py-0.5 rounded-md font-extrabold text-[9px] border ${badgeColor}`}>
-                        {txn.type}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-800 font-bold">{txn.targetName}</span>
-                      <span className="font-mono font-extrabold text-slate-900">₹{txn.amount}</span>
-                    </div>
+              {/* Total Customers Wallets */}
+              <div className="p-3 bg-purple-50/50 rounded-xl border border-purple-100 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-purple-700 font-bold uppercase tracking-wider block">
+                    {activeLanguage === 'hi' ? 'ग्राहक प्रीपेड वॉलेट' : 'Customer Prepaid Wallets'}
+                  </span>
+                  <span className="text-base font-extrabold text-slate-800 font-mono mt-0.5">
+                    ₹{totalCustomerWalletFunds.toLocaleString('en-IN')}
+                  </span>
+                </div>
+                <span className="text-xs font-semibold text-purple-600">{customers.length} {activeLanguage === 'hi' ? 'खाते' : 'Accounts'}</span>
+              </div>
 
-                    <p className="text-[11px] text-slate-500 italic">"{txn.remarks}"</p>
+              {/* Outstanding Vendor Wallets */}
+              <div className="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider block">
+                    {activeLanguage === 'hi' ? 'वेंडर बकाया भुगतान' : 'Vendor Accrued Balance'}
+                  </span>
+                  <span className="text-base font-extrabold text-slate-800 font-mono mt-0.5">
+                    ₹{totalVendorWalletBalance.toLocaleString('en-IN')}
+                  </span>
+                </div>
+                <span className="text-xs font-semibold text-emerald-600">{vendors.length} {activeLanguage === 'hi' ? 'पार्टनर' : 'Partners'}</span>
+              </div>
 
-                    <div className="flex justify-between items-center text-[10px] text-slate-400 mt-1 border-t pt-1 border-dashed border-slate-200">
-                      <span>Target: {txn.targetRole}</span>
-                      <span>{txn.timestamp}</span>
-                    </div>
-                  </div>
-                );
-              })}
+              {/* Outstanding Rider Settlements */}
+              <div className="p-3 bg-amber-50/50 rounded-xl border border-amber-100 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-amber-700 font-bold uppercase tracking-wider block">
+                    {activeLanguage === 'hi' ? 'राइडर बकाया वेतन' : 'Rider Unsettled Pay'}
+                  </span>
+                  <span className="text-base font-extrabold text-slate-800 font-mono mt-0.5">
+                    ₹{totalRidersEarnings.toLocaleString('en-IN')}
+                  </span>
+                </div>
+                <span className="text-xs font-semibold text-amber-600">{riders.length} {activeLanguage === 'hi' ? 'राइडर्स' : 'Riders'}</span>
+              </div>
             </div>
           </div>
 
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-            <span className="font-semibold text-slate-500">Bhopal Logistics System Ledger</span>
-            <span className="font-mono font-bold text-emerald-600 animate-pulse flex items-center gap-1">
-              <span className="h-1.5 w-1.5 bg-emerald-500 rounded-full"></span> Secure Audit Live
+            <span className="font-semibold text-slate-500">
+              {activeLanguage === 'hi' ? 'लॉजिस्टिक्स ट्रेजरी सिस्टम' : 'Bhopal Logistics Treasury'}
+            </span>
+            <span className="font-mono font-bold text-emerald-600 flex items-center gap-1">
+              <span className="h-1.5 w-1.5 bg-emerald-500 rounded-full"></span> {activeLanguage === 'hi' ? 'सुरक्षित डेटा' : 'Secure Vault'}
             </span>
           </div>
+        </div>
+
+      </div>
+
+      {/* Real-time Administrative Audit Ledger (Clean Table Layout with Filters) */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-150 shadow-sm space-y-6 animate-fade-in" id="real-time-ledger-section">
+        
+        {/* Header Block */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4 border-slate-100">
+          <div>
+            <h3 className="font-extrabold text-slate-800 text-base flex items-center gap-2">
+              <Layers size={18} className="text-indigo-600 animate-pulse" />
+              {activeLanguage === 'hi' ? 'प्रशासनिक ऑडिट बहीखाता (सुरक्षित)' : 'Administrative Audit Ledger (Secure)'}
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {activeLanguage === 'hi' 
+                ? 'सभी वॉलेट एडजस्टमेंट, भुगतान और सिस्टम ट्रांसफर का विस्तृत ऑडिट लॉग' 
+                : 'Detailed audit trail of all prepaid wallet changes, settlements, and payouts'}
+            </p>
+          </div>
+          <div className="font-mono text-[10px] bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full border border-indigo-100 font-bold self-start sm:self-center">
+            {filteredTransactions.length} {activeLanguage === 'hi' ? 'लेनदेन मिले' : 'Transactions Found'}
+          </div>
+        </div>
+
+        {/* Filter Toolbar */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-150" id="ledger-filters">
+          
+          {/* Search Box */}
+          <div className="relative">
+            <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
+              {activeLanguage === 'hi' ? 'खोजें (नाम/टिप्पणी/ID)' : 'Search (Name/Remarks/ID)'}
+            </label>
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                value={txnSearch}
+                onChange={(e) => setTxnSearch(e.target.value)}
+                placeholder={activeLanguage === 'hi' ? 'खोज शुरू करें...' : 'Start typing to search...'}
+                className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
+          {/* Type Filter (Credit / Debit) */}
+          <div>
+            <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
+              {activeLanguage === 'hi' ? 'प्रकार (Credit/Debit)' : 'Type (Credit/Debit)'}
+            </label>
+            <select
+              value={txnFilterType}
+              onChange={(e) => setTxnFilterType(e.target.value as any)}
+              className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="all">{activeLanguage === 'hi' ? 'सभी प्रकार' : 'All Types'}</option>
+              <option value="credit">{activeLanguage === 'hi' ? 'क्रेडिट (+ Wallet Credit)' : 'Credit (+ Wallet Deposit)'}</option>
+              <option value="debit">{activeLanguage === 'hi' ? 'डेबिट (- Wallet/Payouts)' : 'Debit (- Deductions/Payouts)'}</option>
+            </select>
+          </div>
+
+          {/* Role Filter (Customer / Vendor / Rider) */}
+          <div>
+            <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
+              {activeLanguage === 'hi' ? 'उपयोगकर्ता भूमिका' : 'User Role'}
+            </label>
+            <select
+              value={txnFilterRole}
+              onChange={(e) => setTxnFilterRole(e.target.value as any)}
+              className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="all">{activeLanguage === 'hi' ? 'सभी भूमिकाएं' : 'All Roles'}</option>
+              <option value="Customer">{activeLanguage === 'hi' ? 'ग्राहक (Customer)' : 'Customer'}</option>
+              <option value="Vendor">{activeLanguage === 'hi' ? 'वेंडर (Vendor)' : 'Vendor'}</option>
+              <option value="Rider">{activeLanguage === 'hi' ? 'राइडर (Rider)' : 'Rider'}</option>
+            </select>
+          </div>
+
+          {/* Date Filter preset & custom date input combined */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex-1">
+              <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
+                {activeLanguage === 'hi' ? 'तारीख' : 'Date Preset'}
+              </label>
+              <select
+                value={txnFilterDatePreset}
+                onChange={(e) => setTxnFilterDatePreset(e.target.value as any)}
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="all">{activeLanguage === 'hi' ? 'सभी समय' : 'All Time'}</option>
+                <option value="today">{activeLanguage === 'hi' ? 'आज' : 'Today'}</option>
+                <option value="yesterday">{activeLanguage === 'hi' ? 'कल' : 'Yesterday'}</option>
+                <option value="7days">{activeLanguage === 'hi' ? 'पिछले 7 दिन' : 'Last 7 Days'}</option>
+                <option value="custom">{activeLanguage === 'hi' ? 'कस्टम तारीख' : 'Custom Date'}</option>
+              </select>
+            </div>
+            
+            {txnFilterDatePreset === 'custom' && (
+              <div className="sm:w-1/2 animate-fade-in">
+                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
+                  {activeLanguage === 'hi' ? 'तारीख चुनें' : 'Select Date'}
+                </label>
+                <input
+                  type="date"
+                  value={txnFilterCustomDate}
+                  onChange={(e) => setTxnFilterCustomDate(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            )}
+          </div>
+
+        </div>
+
+        {/* Table layout for ledger details */}
+        <div className="overflow-x-auto rounded-2xl border border-slate-150" id="ledger-table-container">
+          <table className="w-full border-collapse text-left text-xs">
+            <thead className="bg-slate-100 text-slate-500 font-extrabold uppercase tracking-wider border-b border-slate-150">
+              <tr>
+                <th className="p-3.5 whitespace-nowrap">{activeLanguage === 'hi' ? 'दिनांक और समय' : 'Date & Time'}</th>
+                <th className="p-3.5 whitespace-nowrap">{activeLanguage === 'hi' ? 'लेनदेन आईडी' : 'Transaction ID'}</th>
+                <th className="p-3.5 whitespace-nowrap">{activeLanguage === 'hi' ? 'उपयोगकर्ता का नाम' : 'User Name'}</th>
+                <th className="p-3.5 whitespace-nowrap">{activeLanguage === 'hi' ? 'भूमिका' : 'Role'}</th>
+                <th className="p-3.5 whitespace-nowrap">{activeLanguage === 'hi' ? 'प्रकार' : 'Type'}</th>
+                <th className="p-3.5 text-right whitespace-nowrap">{activeLanguage === 'hi' ? 'राशि' : 'Amount'}</th>
+                <th className="p-3.5 whitespace-nowrap">{activeLanguage === 'hi' ? 'विवरण' : 'Remarks / Memo'}</th>
+                <th className="p-3.5 text-center whitespace-nowrap">{activeLanguage === 'hi' ? 'स्थिति' : 'Status'}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {filteredTransactions.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="p-8 text-center text-slate-400 font-semibold italic">
+                    {activeLanguage === 'hi' ? 'कोई मिलान लेनदेन नहीं मिला।' : 'No matching transactions found.'}
+                  </td>
+                </tr>
+              ) : (
+                filteredTransactions.map((txn) => {
+                  const isCredit = txn.type === 'Wallet Deposit';
+                  
+                  let roleIcon = <Users size={14} className="text-purple-600" />;
+                  let roleBg = 'bg-purple-50 text-purple-700 border-purple-100';
+                  if (txn.targetRole === 'Vendor') {
+                    roleIcon = <Store size={14} className="text-emerald-600" />;
+                    roleBg = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+                  } else if (txn.targetRole === 'Rider') {
+                    roleIcon = <Bike size={14} className="text-amber-600" />;
+                    roleBg = 'bg-amber-50 text-amber-700 border-amber-100';
+                  }
+
+                  let typeBadge = (
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-rose-50 border border-rose-100 text-rose-700 inline-flex items-center gap-1">
+                      <ArrowDownRight size={12} /> {activeLanguage === 'hi' ? 'डेबिट (-)' : 'Debit (-)'}
+                    </span>
+                  );
+                  if (isCredit) {
+                    typeBadge = (
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 border border-emerald-100 text-emerald-700 inline-flex items-center gap-1">
+                        <ArrowUpRight size={12} /> {activeLanguage === 'hi' ? 'क्रेडिट (+)' : 'Credit (+)'}
+                      </span>
+                    );
+                  }
+
+                  return (
+                    <tr key={txn.id} className="hover:bg-slate-50/70 transition-colors">
+                      {/* Date & Time */}
+                      <td className="p-3.5 font-semibold text-slate-600 whitespace-nowrap">
+                        {txn.timestamp}
+                      </td>
+
+                      {/* Transaction ID */}
+                      <td className="p-3.5 font-mono font-bold text-slate-400">
+                        {txn.id}
+                      </td>
+
+                      {/* User Name */}
+                      <td className="p-3.5 font-extrabold text-slate-800 whitespace-nowrap">
+                        {txn.targetName}
+                      </td>
+
+                      {/* Role */}
+                      <td className="p-3.5 whitespace-nowrap">
+                        <span className={`px-2.5 py-1 rounded-lg font-bold text-[10px] border flex items-center gap-1.5 w-max ${roleBg}`}>
+                          {roleIcon}
+                          {txn.targetRole === 'Customer' ? (activeLanguage === 'hi' ? 'ग्राहक' : 'Customer') :
+                           txn.targetRole === 'Vendor' ? (activeLanguage === 'hi' ? 'वेंडर' : 'Vendor') :
+                           (activeLanguage === 'hi' ? 'राइडर' : 'Rider')}
+                        </span>
+                      </td>
+
+                      {/* Type Badge */}
+                      <td className="p-3.5 whitespace-nowrap">
+                        {typeBadge}
+                      </td>
+
+                      {/* Color Coded Amount */}
+                      <td className="p-3.5 text-right whitespace-nowrap">
+                        <span className={`font-mono font-extrabold text-sm px-2.5 py-1 rounded-lg ${
+                          isCredit 
+                            ? 'text-emerald-700 bg-emerald-50/50' 
+                            : 'text-rose-700 bg-rose-50/50'
+                        }`}>
+                          {isCredit ? '+' : '-'}₹{txn.amount.toLocaleString('en-IN')}
+                        </span>
+                      </td>
+
+                      {/* Remarks */}
+                      <td className="p-3.5 text-slate-500 italic max-w-xs truncate" title={txn.remarks}>
+                        "{txn.remarks}"
+                      </td>
+
+                      {/* Status */}
+                      <td className="p-3.5 whitespace-nowrap text-center">
+                        {txn.status === 'Completed' ? (
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 border border-emerald-100 text-emerald-700 inline-flex items-center gap-1">
+                            <CheckCircle size={12} /> {activeLanguage === 'hi' ? 'सफल' : 'Completed'}
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-50 border border-amber-100 text-amber-700 inline-flex items-center gap-1 animate-pulse">
+                            <Clock size={12} /> {activeLanguage === 'hi' ? 'लंबित' : 'Pending'}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
 
       </div>

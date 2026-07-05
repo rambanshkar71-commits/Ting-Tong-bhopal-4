@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   INITIAL_CUSTOMERS, 
@@ -31,6 +32,8 @@ import {
   SystemSettingsTab 
 } from './components/SystemConfigTabs';
 import SupportCenterTab from './components/SupportCenterTab';
+import AuthPortal from './components/AuthPortal';
+import RevenueReportsTab from './components/RevenueReportsTab';
 
 // Icons Import
 import { 
@@ -56,7 +59,8 @@ import {
   LifeBuoy,
   Send,
   Languages,
-  Globe
+  Globe,
+  ArrowLeft
 } from 'lucide-react';
 
 export default function App() {
@@ -95,13 +99,50 @@ export default function App() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(INITIAL_AUDIT_LOGS);
 
   // App Layout States
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const getTabFromPath = (path: string): string => {
+    if (path.startsWith('/customers')) return 'customers';
+    if (path.startsWith('/vendors')) return 'vendors';
+    if (path.startsWith('/riders')) return 'riders';
+    if (path.startsWith('/orders/all-orders')) return 'orders';
+    if (path.startsWith('/orders/live-tracking')) return 'tracking';
+    if (path.startsWith('/finance/commission')) return 'commission';
+    if (path.startsWith('/reports/revenue')) return 'revenue';
+    if (path.startsWith('/payment')) return 'payment';
+    if (path.startsWith('/delivery')) return 'delivery';
+    if (path.startsWith('/areas')) return 'areas';
+    if (path.startsWith('/marketing')) return 'marketing';
+    if (path.startsWith('/support')) return 'support';
+    if (path.startsWith('/settings')) return 'settings';
+    return 'dashboard';
+  };
+
+  const [activeTab, setActiveTab] = useState<string>(() => getTabFromPath(location.pathname));
+
+  React.useEffect(() => {
+    setActiveTab(getTabFromPath(location.pathname));
+  }, [location.pathname]);
+
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
-  const [activeProfile, setActiveProfile] = useState<'Super Admin' | 'Support' | 'Operations'>('Super Admin');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => localStorage.getItem('admin_authenticated') === 'true');
+  const [activeProfile, setActiveProfile] = useState<'Super Admin' | 'Support' | 'Operations'>(() => {
+    const saved = localStorage.getItem('current_admin_profile');
+    if (saved === 'Support' || saved === 'Operations' || saved === 'Super Admin') {
+      return saved;
+    }
+    return 'Super Admin';
+  });
   const [unreadAlerts, setUnreadAlerts] = useState<number>(3);
   const [activeLanguage, setActiveLanguage] = useState<Language>('en');
 
   const t = TRANSLATIONS[activeLanguage];
+
+  const handleLoginSuccess = (profile: 'Super Admin' | 'Support' | 'Operations') => {
+    setActiveProfile(profile);
+    setIsAuthenticated(true);
+  };
 
   const addAuditLog = (action: string, category: AuditLog['category'], details: string) => {
     const newLog: AuditLog = {
@@ -356,8 +397,53 @@ export default function App() {
   ];
 
   const handleTabSelect = (tabId: string) => {
-    setActiveTab(tabId);
     setSidebarOpen(false); // Close mobile drawer
+    switch (tabId) {
+      case 'dashboard':
+        navigate('/dashboard');
+        break;
+      case 'customers':
+        navigate('/customers');
+        break;
+      case 'vendors':
+        navigate('/vendors');
+        break;
+      case 'riders':
+        navigate('/riders');
+        break;
+      case 'orders':
+        navigate('/orders/all-orders');
+        break;
+      case 'tracking':
+        navigate('/orders/live-tracking');
+        break;
+      case 'payment':
+        navigate('/payment');
+        break;
+      case 'commission':
+        navigate('/finance/commission');
+        break;
+      case 'delivery':
+        navigate('/delivery');
+        break;
+      case 'areas':
+        navigate('/areas');
+        break;
+      case 'marketing':
+        navigate('/marketing');
+        break;
+      case 'support':
+        navigate('/support');
+        break;
+      case 'settings':
+        navigate('/settings');
+        break;
+      case 'revenue':
+        navigate('/reports/revenue');
+        break;
+      default:
+        navigate('/dashboard');
+    }
   };
 
   // Render correct panel based on activeTab state
@@ -390,6 +476,7 @@ export default function App() {
             riders={riders} 
             customers={customers} 
             vendors={vendors} 
+            zones={zones}
             onUpdateOrder={handleUpdateOrder} 
             onUpdateRider={handleUpdateRider} 
             onUpdateCustomer={handleUpdateCustomer} 
@@ -451,6 +538,14 @@ export default function App() {
             onSelectLanguage={setActiveLanguage}
           />
         );
+      case 'revenue':
+        return (
+          <RevenueReportsTab 
+            activeLanguage={activeLanguage}
+            orders={orders}
+            vendors={vendors}
+          />
+        );
       default:
         return (
           <DashboardTab 
@@ -467,10 +562,19 @@ export default function App() {
     }
   };
 
+
+  if (!isAuthenticated) {
+    return (
+      <AuthPortal 
+        onLoginSuccess={handleLoginSuccess}
+        addAuditLog={addAuditLog}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex" id="main-admin-layout">
-      
-      {/* 1. SIDEBAR NAVIGATION - DESKTOP & MOBILE TRANSITIONS */}
+
       <aside 
         className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 border-r border-slate-800 text-slate-300 flex flex-col justify-between transform transition-transform duration-300 lg:translate-x-0 lg:static lg:h-screen lg:shrink-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -488,8 +592,8 @@ export default function App() {
                 referrerPolicy="no-referrer"
               />
               <div>
-                <span className="font-bold text-white tracking-tight text-[13px] block">BHOPAL EXPRESS</span>
-                <span className="text-[9px] text-indigo-400 font-bold block uppercase tracking-wider">Logistics Portal</span>
+                <span className="font-bold text-white tracking-tight text-[13px] block">TING TONG BHOPAL</span>
+                <span className="text-[9px] text-indigo-400 font-bold block uppercase tracking-wider">Foods Delivery</span>
               </div>
             </div>
             
@@ -529,16 +633,30 @@ export default function App() {
           </nav>
         </div>
 
-        {/* Sidebar Footer User Info */}
+        {/* Sidebar Footer User Info & Logout Button */}
         <div className="p-4 border-t border-slate-800 bg-slate-950/20 text-xs">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 bg-slate-800 rounded-full flex items-center justify-center text-white font-bold border border-slate-700">
-              BE
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-9 w-9 bg-slate-800 rounded-full flex items-center justify-center text-white font-bold border border-slate-700 shrink-0">
+                BE
+              </div>
+              <div className="min-w-0">
+                <span className="font-bold text-white block truncate">{activeProfile} Mode</span>
+                <span className="text-[10px] text-slate-500 block truncate">Bhopal Hub HQ</span>
+              </div>
             </div>
-            <div>
-              <span className="font-bold text-white block">{activeProfile} Mode</span>
-              <span className="text-[10px] text-slate-500 block">Bhopal Hub HQ</span>
-            </div>
+            <button
+              onClick={() => {
+                localStorage.removeItem('admin_authenticated');
+                setIsAuthenticated(false);
+                addAuditLog('Admin Logged Out', 'Security', `Administrator manually logged out of session.`);
+              }}
+              className="p-2 text-slate-500 hover:text-rose-400 hover:bg-slate-800/80 rounded-xl transition-all shrink-0"
+              title="Logout Session"
+              id="sidebar-logout-btn"
+            >
+              <Power size={14} />
+            </button>
           </div>
         </div>
       </aside>
@@ -556,7 +674,7 @@ export default function App() {
         
         {/* Layout Header */}
         <header className="h-16 bg-white border-b border-slate-100 flex items-center justify-between px-6 shrink-0 sticky top-0 z-20 shadow-xs" id="main-header">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {/* Mobile menu humburg toggle */}
             <button
               onClick={() => setSidebarOpen(true)}
@@ -565,6 +683,17 @@ export default function App() {
             >
               <Menu size={18} />
             </button>
+
+            {activeTab !== 'dashboard' && (
+              <button
+                onClick={() => handleTabSelect('dashboard')}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition-all border border-indigo-100 shadow-2xs group shrink-0 cursor-pointer"
+                id="header-back-button"
+              >
+                <ArrowLeft size={14} className="stroke-[2.5px] group-hover:-translate-x-0.5 transition-transform text-indigo-600" />
+                <span>{t.back}</span>
+              </button>
+            )}
             
             <div className="hidden sm:flex items-center gap-3 text-xs" id="header-diagnostics">
               <span className="text-slate-400 font-medium">{t.hubLabel}</span>
@@ -579,22 +708,12 @@ export default function App() {
           {/* Settings & Profile Switches */}
           <div className="flex items-center gap-4">
 
-            {/* Admin Profile Role Swapper */}
-            <div className="flex items-center gap-1.5 text-xs bg-slate-50 border border-slate-150 p-1 rounded-xl">
-              <span className="px-2 font-bold text-slate-400 hidden md:inline">{t.roleLabel}</span>
-              {(['Super Admin', 'Support', 'Operations'] as const).map(role => (
-                <button
-                  key={role}
-                  onClick={() => setActiveProfile(role)}
-                  className={`px-2.5 py-1 rounded-lg font-bold transition-all text-[11px] ${
-                    activeProfile === role
-                      ? 'bg-white text-slate-800 shadow-xs border border-slate-100'
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  {role}
-                </button>
-              ))}
+            {/* Header Company Branding */}
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50/50 border border-indigo-100/60 rounded-xl" id="header-company-name">
+              <div className="w-2 h-2 bg-indigo-600 rounded-full shrink-0 animate-pulse" />
+              <span className="font-extrabold text-xs text-indigo-950 tracking-tight truncate max-w-[140px] sm:max-w-none">
+                Ting Tong Bhopal
+              </span>
             </div>
 
             {/* Quick Dispatch Notification Button */}
@@ -612,7 +731,7 @@ export default function App() {
             <button 
               onClick={() => {
                 setUnreadAlerts(0);
-                setActiveTab('marketing'); // Navigate to Marketing tab log to see notifications
+                navigate('/marketing'); // Navigate to Marketing tab log to see notifications
               }}
               className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-50 border border-slate-150 rounded-xl relative transition-all"
               id="alert-bell-button"

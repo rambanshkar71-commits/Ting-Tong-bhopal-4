@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Order, OrderStatus, Rider, Customer, Vendor } from '../types';
+import { Order, OrderStatus, Rider, Customer, Vendor, AreaZone } from '../types';
 import { Language, TRANSLATIONS } from '../lib/translations';
 import { 
   ShoppingBag, 
@@ -20,6 +20,24 @@ import {
 } from 'lucide-react';
 
 // ==========================================
+// Address lookup map for Bhopal nodes to get highly detailed coordinates and names
+// ==========================================
+export const VENDOR_ADDRESS_MAP: Record<string, string> = {
+  'VND-001': 'Zone-II, Maharana Pratap Nagar, Bhopal, Madhya Pradesh, India',
+  'VND-002': 'Hamidia Road, near Bhopal Junction railway station, Bhopal, Madhya Pradesh, India',
+  'VND-003': 'Indian Coffee House, TT Nagar, Bhopal, Madhya Pradesh, India',
+  'VND-004': 'Sharma & Vishnu Fast Food, Indrapuri Sector C, Bhopal, Madhya Pradesh, India',
+};
+
+export const CUSTOMER_ADDRESS_MAP: Record<string, string> = {
+  'CUST-101': 'Arera Colony E-7, Bhopal, Madhya Pradesh, India',
+  'CUST-102': 'Chunabhatti, Near Shahpura Lake, Bhopal, Madhya Pradesh, India',
+  'CUST-103': 'Kotra Sultanabad, Bhopal, Madhya Pradesh, India',
+  'CUST-104': 'BHEL Colony, Piplani, Bhopal, Madhya Pradesh, India',
+  'CUST-105': 'Kolar Heights, Kolar Road, Bhopal, Madhya Pradesh, India',
+};
+
+// ==========================================
 // 1. ORDER PIPELINE MANAGEMENT COMPONENT
 // ==========================================
 interface OrderManagementTabProps {
@@ -28,6 +46,7 @@ interface OrderManagementTabProps {
   riders: Rider[];
   customers: Customer[];
   vendors: Vendor[];
+  zones: AreaZone[];
   onUpdateOrder: (updatedOrder: Order) => void;
   onUpdateRider: (updatedRider: Rider) => void;
   onUpdateCustomer: (updatedCustomer: Customer) => void;
@@ -35,10 +54,185 @@ interface OrderManagementTabProps {
 }
 
 export function OrderManagementTab(props: OrderManagementTabProps) {
-  const { activeLanguage = 'en', orders, riders, customers, vendors, onUpdateOrder, onUpdateRider, onUpdateCustomer, onUpdateVendor } = props;
+  const { activeLanguage = 'en', orders, riders, customers, vendors, zones = [], onUpdateOrder, onUpdateRider, onUpdateCustomer, onUpdateVendor } = props;
   const t = TRANSLATIONS[activeLanguage];
   const [activePipelineTab, setActivePipelineTab] = useState<OrderStatus>('New');
   const [assigningRiderOrderId, setAssigningRiderOrderId] = useState<string | null>(null);
+  const [manualMatchOrderId, setManualMatchOrderId] = useState<string | null>(null);
+
+  // Auto-Assignment Engine persistent toggling
+  const [isAutoAssignActive, setIsAutoAssignActive] = useState<boolean>(() => {
+    return localStorage.getItem('auto_assign_riders') === 'true';
+  });
+
+  const [assignmentLogs, setAssignmentLogs] = useState<string[]>(() => {
+    return [
+      `[${new Date().toLocaleTimeString()}] 📡 Multi-Zone Dispatcher Engine initialized. Standing by...`,
+      `[${new Date().toLocaleTimeString()}] 🗺️ Bhopal Metropolitan Grid system ready.`
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('auto_assign_riders', isAutoAssignActive ? 'true' : 'false');
+  }, [isAutoAssignActive]);
+
+  // Bhopal Metropolitan Grid - coordinate helpers
+  const getVendorCoords = (vendorId: string) => {
+    switch (vendorId) {
+      case 'VND-001': return { x: 75, y: 48 }; // MP Nagar
+      case 'VND-002': return { x: 40, y: 45 }; // Hamidia Road
+      case 'VND-003': return { x: 45, y: 51 }; // TT Nagar
+      case 'VND-004': return { x: 85, y: 25 }; // Indrapuri
+      default: return { x: 50, y: 50 };
+    }
+  };
+
+  const getCustomerCoords = (customerId: string) => {
+    switch (customerId) {
+      case 'CUST-101': return { x: 70, y: 75 }; // Arera Colony E-7
+      case 'CUST-102': return { x: 55, y: 78 }; // Chunabhatti
+      case 'CUST-103': return { x: 45, y: 90 }; // Kotra Sultanabad
+      case 'CUST-104': return { x: 82, y: 25 }; // BHEL Colony
+      case 'CUST-105': return { x: 45, y: 88 }; // Kolar Road
+      default: return { x: 50, y: 50 };
+    }
+  };
+
+  const getClosestZoneId = (x: number, y: number) => {
+    const zoneCenters: Record<string, { x: number; y: number }> = {
+      'ZONE-A': { x: 75, y: 48 },  // MP Nagar
+      'ZONE-B': { x: 65, y: 70 },  // Arera Colony
+      'ZONE-C': { x: 45, y: 88 },  // Kolar Road
+      'ZONE-D': { x: 82, y: 25 },  // BHEL & Indrapuri
+      'ZONE-E': { x: 40, y: 45 },  // Old Bhopal
+    };
+
+    let minDistance = Infinity;
+    let closestId = 'ZONE-A';
+
+    for (const zoneId of Object.keys(zoneCenters)) {
+      const center = zoneCenters[zoneId];
+      const dist = Math.sqrt(Math.pow(x - center.x, 2) + Math.pow(y - center.y, 2));
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestId = zoneId;
+      }
+    }
+    return closestId;
+  };
+
+  const computeRiderMatches = (orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return [];
+
+    const vendorCoords = getVendorCoords(order.vendorId);
+    const orderZoneId = getClosestZoneId(vendorCoords.x, vendorCoords.y);
+
+    return riders
+      .filter(r => r.status === 'Online' && r.approvalStatus === 'Approved' && !r.isSuspended)
+      .map(rider => {
+        const rCoords = rider.currentLocation || { x: 50, y: 50 };
+        const riderZoneId = getClosestZoneId(rCoords.x, rCoords.y);
+        const rZone = zones.find(z => z.id === riderZoneId);
+        const isRiderZoneActive = rZone ? rZone.status === 'Active' : true;
+
+        const distance = Math.sqrt(Math.pow(rCoords.x - vendorCoords.x, 2) + Math.pow(rCoords.y - vendorCoords.y, 2));
+        
+        let score = 100;
+        let reasons: string[] = [];
+
+        if (riderZoneId === orderZoneId) {
+          score += 15;
+          reasons.push('Same Zone Match (+15)');
+        } else {
+          score -= 20;
+          reasons.push('Cross-Zone Dispatch (-20)');
+        }
+
+        const distPenalty = Math.round(distance * 2);
+        score -= distPenalty;
+        reasons.push(`Distance Penalty (-${distPenalty})`);
+
+        const activeOrdersCount = orders.filter(o => o.riderId === rider.id && ['Preparing', 'Ready', 'Picked'].includes(o.status)).length;
+        if (activeOrdersCount > 0) {
+          const loadPenalty = activeOrdersCount * 25;
+          score -= loadPenalty;
+          reasons.push(`Active Load Penalty: ${activeOrdersCount} orders (-${loadPenalty})`);
+        } else {
+          score += 10;
+          reasons.push('Rider Idle / High Availability (+10)');
+        }
+
+        if (!isRiderZoneActive) {
+          score = -999;
+          reasons.push('CRITICAL: Rider zone is disabled!');
+        }
+
+        return {
+          rider,
+          score,
+          distance,
+          riderZoneName: rZone?.name || 'Bhopal Grid',
+          riderZoneId,
+          isEligible: score > -500,
+          reasons
+        };
+      })
+      .sort((a, b) => b.score - a.score);
+  };
+
+  const autoAssignSingleOrder = (orderId: string, silent = false) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return false;
+
+    const matches = computeRiderMatches(orderId);
+    const eligibleMatches = matches.filter(m => m.isEligible);
+
+    if (eligibleMatches.length === 0) {
+      if (!silent) {
+        alert(`Could not find any eligible online riders in active zones for order ${orderId}. Please make sure at least one approved rider is Online.`);
+      }
+      return false;
+    }
+
+    const bestMatch = eligibleMatches[0];
+    const bestRider = bestMatch.rider;
+
+    handleAssignRiderSubmit(orderId, bestRider.id);
+
+    const timestamp = new Date().toLocaleTimeString();
+    const logMsg = `[${timestamp}] 🧠 Order ${orderId} matched with ${bestRider.name} (Zone: ${bestMatch.riderZoneName}, Distance: ${bestMatch.distance.toFixed(1)} units, Score: ${bestMatch.score})`;
+    setAssignmentLogs(prev => [logMsg, ...prev]);
+
+    return true;
+  };
+
+  const handleBulkAutoAssign = () => {
+    const acceptedUnassigned = orders.filter(o => o.status === 'Accepted' && !o.riderId);
+    if (acceptedUnassigned.length === 0) {
+      alert('There are no accepted, unassigned orders to match at this moment.');
+      return;
+    }
+
+    let count = 0;
+    acceptedUnassigned.forEach(order => {
+      const success = autoAssignSingleOrder(order.id, true);
+      if (success) count++;
+    });
+
+    alert(`Processed dispatcher matching queue: Automatically assigned ${count} out of ${acceptedUnassigned.length} orders to optimal nearby riders.`);
+  };
+
+  // Run dynamic automatic assignment when orders update and auto assignment is toggled ON
+  useEffect(() => {
+    if (!isAutoAssignActive) return;
+
+    const acceptedUnassigned = orders.filter(o => o.status === 'Accepted' && !o.riderId);
+    if (acceptedUnassigned.length === 0) return;
+
+    const targetOrder = acceptedUnassigned[0];
+    autoAssignSingleOrder(targetOrder.id, true);
+  }, [orders, isAutoAssignActive]);
 
   const pipelineTabs: OrderStatus[] = ['New', 'Accepted', 'Preparing', 'Ready', 'Picked', 'Delivered', 'Cancelled', 'Refunded'];
 
@@ -190,6 +384,93 @@ export function OrderManagementTab(props: OrderManagementTabProps) {
         </div>
       </div>
 
+      {/* 🧠 SMART DISPATCH & MULTI-ZONE RIDER MATCHER PANEL */}
+      <div className="bg-slate-900 border border-slate-800 text-white rounded-2xl p-5 shadow-lg space-y-4">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 bg-indigo-600/20 border border-indigo-500/30 rounded-xl text-indigo-400">
+              <Zap className="animate-pulse" size={20} />
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold tracking-tight text-white flex items-center gap-2">
+                🧠 Smart Dispatch & Multi-Zone Matcher Engine
+                <span className={`h-2.5 w-2.5 rounded-full ${isAutoAssignActive ? 'bg-emerald-500 animate-ping' : 'bg-slate-600'}`} />
+              </h3>
+              <p className="text-[11px] text-slate-400 mt-0.5">Automates nearby rider routing across active Bhopal zones with cross-load balancing.</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto self-stretch lg:self-auto justify-end">
+            <button
+              onClick={handleBulkAutoAssign}
+              className="flex-1 lg:flex-none px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-indigo-900/30"
+            >
+              🚀 Bulk Auto-Assign Now
+            </button>
+            <button
+              onClick={() => setIsAutoAssignActive(!isAutoAssignActive)}
+              className={`flex-1 lg:flex-none px-4 py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                isAutoAssignActive
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500 shadow-md shadow-emerald-900/30'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+              }`}
+            >
+              {isAutoAssignActive ? '🟢 Engine Active' : '⚪ Engine Standing By'}
+            </button>
+          </div>
+        </div>
+
+        {/* Dispatcher Dashboard Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          {/* Col 1: Zone Status & Rider Presence */}
+          <div className="bg-slate-950/40 border border-slate-800/85 rounded-xl p-3.5 space-y-2.5">
+            <h4 className="font-extrabold text-[10px] tracking-wider text-slate-400 uppercase">Active Zone Presence Matrix</h4>
+            <div className="space-y-1.5 max-h-[140px] overflow-y-auto scrollbar-thin">
+              {zones.map(zone => {
+                const zoneRiders = riders.filter(r => {
+                  if (r.status !== 'Online' || r.approvalStatus !== 'Approved') return false;
+                  const coords = r.currentLocation || { x: 50, y: 50 };
+                  return getClosestZoneId(coords.x, coords.y) === zone.id;
+                });
+                const isActive = zone.status === 'Active';
+                return (
+                  <div key={zone.id} className="flex items-center justify-between p-1 bg-slate-900/40 rounded border border-slate-800/50">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-400' : 'bg-rose-500'}`} />
+                      <span className="font-bold text-[11px] truncate max-w-[120px]" title={zone.name}>{zone.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] bg-slate-800 text-slate-300 font-mono px-1 py-0.2 rounded">{zone.id}</span>
+                      <span className="font-mono text-[11px] font-bold text-indigo-300">{zoneRiders.length} 🏍️</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Col 2: Dispatcher Live Activity Logs Terminal */}
+          <div className="bg-slate-950/60 border border-slate-850 rounded-xl p-3.5 flex flex-col justify-between md:col-span-2">
+            <div className="flex justify-between items-center pb-1.5 border-b border-slate-800">
+              <span className="font-mono font-bold text-[10px] tracking-wider text-indigo-400 uppercase">Live Routing & Telemetry Stream</span>
+              <button 
+                onClick={() => setAssignmentLogs([`[${new Date().toLocaleTimeString()}] 🧹 Logs cleared.`])}
+                className="text-[9px] hover:text-white text-slate-500 underline font-mono"
+              >
+                Clear Stream
+              </button>
+            </div>
+            <div className="mt-2 bg-slate-950 p-2.5 rounded-lg border border-slate-900 font-mono text-[10px] text-slate-300 space-y-1.5 h-[110px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800">
+              {assignmentLogs.map((log, idx) => (
+                <div key={idx} className="leading-normal break-all">
+                  <span className="text-slate-500">&gt;</span> {log}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Horizon Horizontal Scroll Pipeline Stages */}
       <div className="overflow-x-auto pb-2 border-b border-slate-100">
         <div className="flex gap-2 min-w-max" id="pipeline-scroll-tabs">
@@ -261,6 +542,16 @@ export function OrderManagementTab(props: OrderManagementTabProps) {
                     <MapPin size={12} className="text-slate-400 shrink-0 mt-0.5" />
                     <span className="truncate">{order.deliveryAddress}</span>
                   </p>
+                  <div className="mt-2.5">
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(VENDOR_ADDRESS_MAP[order.vendorId] || (order.vendorName + ', Bhopal, India'))}&destination=${encodeURIComponent(CUSTOMER_ADDRESS_MAP[order.customerId] || order.deliveryAddress)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 bg-indigo-50/70 hover:bg-indigo-100/90 text-indigo-700 border border-indigo-100 hover:border-indigo-200 px-2.5 py-1.5 rounded-xl text-[10px] font-extrabold transition-all cursor-pointer"
+                    >
+                      <Navigation size={10} className="transform rotate-45 text-indigo-600" /> Route on Google Maps Online 🚀
+                    </a>
+                  </div>
                 </div>
 
                 <hr className="border-slate-100" />
@@ -327,12 +618,20 @@ export function OrderManagementTab(props: OrderManagementTabProps) {
                 )}
 
                 {order.status === 'Accepted' && (
-                  <button
-                    onClick={() => setAssigningRiderOrderId(order.id)}
-                    className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1"
-                  >
-                    <Bike size={14} /> Assign Rider & Cook
-                  </button>
+                  <div className="flex flex-col gap-2 w-full">
+                    <button
+                      onClick={() => setAssigningRiderOrderId(order.id)}
+                      className="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      <Bike size={14} /> Assign Rider Manually
+                    </button>
+                    <button
+                      onClick={() => setManualMatchOrderId(order.id)}
+                      className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-xs"
+                    >
+                      <Zap size={14} className="animate-pulse text-yellow-300" /> ✨ Auto-Assign Best Rider
+                    </button>
+                  </div>
                 )}
 
                 {order.status === 'Preparing' && (
@@ -415,6 +714,146 @@ export function OrderManagementTab(props: OrderManagementTabProps) {
           </div>
         </div>
       )}
+
+      {/* 🧠 SMART AUTO-ASSIGN COMPARISON MODAL */}
+      {manualMatchOrderId && (() => {
+        const order = orders.find(o => o.id === manualMatchOrderId);
+        if (!order) return null;
+        
+        const matches = computeRiderMatches(manualMatchOrderId);
+        const optimalMatch = matches.find(m => m.isEligible);
+        const vendorCoords = getVendorCoords(order.vendorId);
+        const orderZoneId = getClosestZoneId(vendorCoords.x, vendorCoords.y);
+        const orderZone = zones.find(z => z.id === orderZoneId);
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+            <div className="bg-slate-900 border border-slate-800 text-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col my-8">
+              {/* Modal Header */}
+              <div className="px-6 py-4 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Zap className="text-indigo-400 animate-pulse" size={18} />
+                  <div>
+                    <h3 className="font-extrabold text-sm text-white">Smart Match Dispatcher</h3>
+                    <p className="text-[10px] text-slate-400">Order Ref: <span className="font-mono text-indigo-300 font-bold">{order.id}</span></p>
+                  </div>
+                </div>
+                <button onClick={() => setManualMatchOrderId(null)} className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-all">
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Order Info Summary */}
+              <div className="p-4 bg-slate-950/40 border-b border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-slate-300">
+                <div className="bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/60">
+                  <span className="text-[10px] text-indigo-400 font-bold block uppercase tracking-wide">Restaurant Node</span>
+                  <span className="font-bold text-white block mt-0.5">{order.vendorName}</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Zone: {orderZone?.name || 'Bhopal Central'} ({orderZoneId})</span>
+                </div>
+                <div className="bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/60">
+                  <span className="text-[10px] text-indigo-400 font-bold block uppercase tracking-wide">Customer Node</span>
+                  <span className="font-bold text-white block mt-0.5">Drop: {order.customerId}</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">{CUSTOMER_ADDRESS_MAP[order.customerId] || 'Delivery Node Coordinates'}</span>
+                </div>
+              </div>
+
+              {/* Comparison List */}
+              <div className="p-5 overflow-y-auto max-h-[350px] space-y-3 scrollbar-thin scrollbar-thumb-slate-800">
+                <h4 className="text-[10px] tracking-wider text-slate-400 uppercase font-bold">Rider Score Matching Matrix</h4>
+                
+                {matches.length === 0 ? (
+                  <div className="text-center py-8 text-slate-500 font-medium text-xs">
+                    No online approved riders found in the active workspace. Go to Riders Tab to set a rider online!
+                  </div>
+                ) : (
+                  matches.map(match => {
+                    const isOptimal = optimalMatch && optimalMatch.rider.id === match.rider.id;
+                    const ratingColor = match.score >= 80 ? 'text-emerald-400' : match.score >= 50 ? 'text-indigo-400' : 'text-slate-500';
+                    const progressColor = match.score >= 80 ? 'bg-emerald-500' : match.score >= 50 ? 'bg-indigo-500' : 'bg-slate-600';
+                    return (
+                      <div 
+                        key={match.rider.id}
+                        className={`p-4 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                          isOptimal 
+                            ? 'bg-indigo-950/30 border-indigo-500/60 shadow-lg shadow-indigo-950/20' 
+                            : 'bg-slate-950/20 border-slate-800/70 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="space-y-1.5 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-sm text-white">{match.rider.name}</span>
+                            <span className="text-[9px] bg-slate-800 text-slate-300 px-1.5 py-0.2 rounded font-mono font-bold">{match.rider.id}</span>
+                            {isOptimal && (
+                              <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[9px] font-extrabold rounded-full flex items-center gap-1 animate-pulse">
+                                🌟 HIGHEST SUGGESTED MATCH
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-slate-400 flex flex-wrap gap-x-3 gap-y-1">
+                            <span>Vehicle: <strong className="text-slate-300">{match.rider.vehicleType} ({match.rider.vehicleNumber})</strong></span>
+                            <span>Region: <strong className="text-indigo-300">{match.riderZoneName}</strong></span>
+                            <span>Distance: <strong className="text-white">{match.distance.toFixed(1)} coords units</strong></span>
+                          </div>
+
+                          {/* Matching logic break down reasons */}
+                          <div className="pt-1.5 flex flex-wrap gap-1.5">
+                            {match.reasons.map((reason, idx) => (
+                              <span key={idx} className={`text-[9px] px-1.5 py-0.2 rounded font-mono ${reason.includes('+') ? 'bg-emerald-950/50 text-emerald-400' : reason.includes('disabled') || reason.includes('CRITICAL') ? 'bg-rose-950/50 text-rose-400 font-extrabold border border-rose-500/30' : 'bg-slate-850 text-slate-400'}`}>
+                                {reason}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Dispatch Button & Score Badge */}
+                        <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3 shrink-0">
+                          <div className="text-right">
+                            <span className={`block font-mono font-extrabold text-lg ${ratingColor}`}>{match.score < -500 ? 'INELIGIBLE' : `${match.score} pts`}</span>
+                            {match.score >= -500 && (
+                              <div className="w-24 bg-slate-800 rounded-full h-1.5 mt-1 overflow-hidden">
+                                <div className={`h-full ${progressColor}`} style={{ width: `${Math.max(0, Math.min(100, match.score))}%` }} />
+                              </div>
+                            )}
+                          </div>
+                          
+                          <button
+                            onClick={() => {
+                              handleAssignRiderSubmit(order.id, match.rider.id);
+                              
+                              const timestamp = new Date().toLocaleTimeString();
+                              const logMsg = `[${timestamp}] 🤝 Manually dispatched order ${order.id} to ${match.rider.name} based on recommendation (Match Score: ${match.score})`;
+                              setAssignmentLogs(prev => [logMsg, ...prev]);
+                              setManualMatchOrderId(null);
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-[11px] font-extrabold transition-all active:scale-95 ${
+                              isOptimal 
+                                ? 'bg-indigo-600 hover:bg-indigo-700 text-white' 
+                                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                            }`}
+                          >
+                            Assign This Rider
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-4 bg-slate-950/80 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+                <span>Decision model prioritizes same zone active riders & proximity balance.</span>
+                <button
+                  onClick={() => setManualMatchOrderId(null)}
+                  className="px-4 py-2 hover:bg-slate-800 text-slate-300 font-bold rounded-lg"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -450,23 +889,16 @@ export function LiveTrackingTab(props: LiveTrackingTabProps) {
   const [isSimulating, setIsSimulating] = useState(true);
   const [simulationSpeed, setSimulationSpeed] = useState<number>(1); // Speed multiplier
 
+  // Automatic go to route google map online state
+  const [autoOpenMapsOnline, setAutoOpenMapsOnline] = useState<boolean>(() => {
+    return localStorage.getItem('auto_open_maps_online') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('auto_open_maps_online', autoOpenMapsOnline ? 'true' : 'false');
+  }, [autoOpenMapsOnline]);
+
   const activeTrackingOrders = orders.filter(o => ['Preparing', 'Ready', 'Picked'].includes(o.status));
-
-  // Address lookup map for Bhopal nodes to get highly detailed coordinates and names
-  const VENDOR_ADDRESS_MAP: Record<string, string> = {
-    'VND-001': 'Zone-II, Maharana Pratap Nagar, Bhopal, Madhya Pradesh, India',
-    'VND-002': 'Hamidia Road, near Bhopal Junction railway station, Bhopal, Madhya Pradesh, India',
-    'VND-003': 'Indian Coffee House, TT Nagar, Bhopal, Madhya Pradesh, India',
-    'VND-004': 'Sharma & Vishnu Fast Food, Indrapuri Sector C, Bhopal, Madhya Pradesh, India',
-  };
-
-  const CUSTOMER_ADDRESS_MAP: Record<string, string> = {
-    'CUST-101': 'Arera Colony E-7, Bhopal, Madhya Pradesh, India',
-    'CUST-102': 'Chunabhatti, Near Shahpura Lake, Bhopal, Madhya Pradesh, India',
-    'CUST-103': 'Kotra Sultanabad, Bhopal, Madhya Pradesh, India',
-    'CUST-104': 'BHEL Colony, Piplani, Bhopal, Madhya Pradesh, India',
-    'CUST-105': 'Kolar Heights, Kolar Road, Bhopal, Madhya Pradesh, India',
-  };
 
   // Set default selected order on load
   useEffect(() => {
@@ -664,6 +1096,22 @@ export function LiveTrackingTab(props: LiveTrackingTabProps) {
     }
   }
 
+  // Automatic online redirection effect
+  useEffect(() => {
+    if (!autoOpenMapsOnline) return;
+    if (mapMode !== 'google_navigation') return;
+    if (!originAddress || !destinationAddress) return;
+
+    const timer = setTimeout(() => {
+      const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originAddress)}&destination=${encodeURIComponent(destinationAddress)}`;
+      const win = window.open(googleMapsUrl, '_blank');
+      if (win) {
+        win.focus();
+      }
+    }, 450); // Small delay to guarantee resolved coordinates
+    return () => clearTimeout(timer);
+  }, [selectedOrderId, customOrigin, customDestination, autoOpenMapsOnline, mapMode]);
+
   const handleApplyCustomRoute = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customSearchOrigin.trim() || !customSearchDestination.trim()) return;
@@ -780,6 +1228,33 @@ export function LiveTrackingTab(props: LiveTrackingTabProps) {
                   </button>
                 </form>
               )}
+
+              {/* Automatic Online Google Maps Integration */}
+              <div className="pt-3.5 border-t border-slate-100 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider">Automatic Live Redirect</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer"
+                      checked={autoOpenMapsOnline}
+                      onChange={(e) => setAutoOpenMapsOnline(e.target.checked)}
+                    />
+                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+                <p className="text-[9px] text-slate-400 font-semibold leading-normal">
+                  When enabled, selecting an order or custom route instantly launches Google Maps Online Directions in a new browser tab.
+                </p>
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originAddress)}&destination=${encodeURIComponent(destinationAddress)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-3xs flex items-center justify-center gap-1.5 cursor-pointer mt-1"
+                >
+                  <Navigation size={12} className="transform rotate-45 text-emerald-200" /> Go to Google Maps Online 🚀
+                </a>
+              </div>
             </div>
 
             {/* Dynamic Distance and Time Indicators */}
@@ -865,7 +1340,17 @@ export function LiveTrackingTab(props: LiveTrackingTabProps) {
                 <span className="h-2 w-2 bg-emerald-500 rounded-full animate-pulse"></span>
                 {titleHeader}
               </span>
-              <span className="text-[10px] text-slate-400 font-semibold">Google Maps Sandbox (Free Mode)</span>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] text-slate-400 font-bold hidden sm:inline">Google Maps Sandbox Mode</span>
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(originAddress)}&destination=${encodeURIComponent(destinationAddress)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-xl text-[10px] font-extrabold shadow-3xs transition-all cursor-pointer"
+                >
+                  <Navigation size={11} className="transform rotate-45" /> Go to Maps Online
+                </a>
+              </div>
             </div>
             
             <div className="flex-1 relative bg-slate-100">

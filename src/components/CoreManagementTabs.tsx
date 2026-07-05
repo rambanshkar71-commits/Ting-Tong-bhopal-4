@@ -25,7 +25,10 @@ import {
   FileText,
   Trash2,
   Bike,
-  Power
+  Power,
+  Phone,
+  PhoneOff,
+  ArrowLeft
 } from 'lucide-react';
 
 // ==========================================
@@ -674,13 +677,82 @@ export function VendorManagementTab(props: VendorManagementTabProps) {
     cuisine: '',
     address: '',
     commissionRate: 15,
-    password: ''
+    password: '',
+    shopPhoto: '',
+    fssaiNumber: '',
+    bankAccountNo: '',
+    bankIfsc: '',
+    bankName: 'State Bank of India'
   });
 
   const [expandedVendorId, setExpandedVendorId] = useState<string | null>(null);
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState(100);
   const [newItemCategory, setNewItemCategory] = useState('Main Course');
+
+  // Local state for editing vendor KYC inline
+  const [editingKycVendorId, setEditingKycVendorId] = useState<string | null>(null);
+  const [kycForm, setKycForm] = useState({
+    shopPhoto: '',
+    fssaiNumber: '',
+    bankAccountNo: '',
+    bankIfsc: '',
+    bankName: ''
+  });
+
+  // Simulated calling state
+  const [activeCall, setActiveCall] = useState<{ name: string; phone: string; avatar: string; role: string } | null>(null);
+  const [callStatus, setCallStatus] = useState<'connecting' | 'ringing' | 'connected' | 'ended'>('connecting');
+  const [callDuration, setCallDuration] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isSpeaker, setIsSpeaker] = useState(false);
+
+  React.useEffect(() => {
+    let timer: any = null;
+    if (activeCall) {
+      if (callStatus === 'connecting') {
+        timer = setTimeout(() => {
+          setCallStatus('ringing');
+        }, 1500);
+      } else if (callStatus === 'ringing') {
+        timer = setTimeout(() => {
+          setCallStatus('connected');
+          setCallDuration(0);
+        }, 2000);
+      } else if (callStatus === 'connected') {
+        timer = setInterval(() => {
+          setCallDuration(prev => prev + 1);
+        }, 1000);
+      }
+    }
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+        clearInterval(timer);
+      }
+    };
+  }, [activeCall, callStatus]);
+
+  const handleInitiateCall = (name: string, phone: string, avatar: string, role: string) => {
+    setActiveCall({ name, phone, avatar, role });
+    setCallStatus('connecting');
+    setCallDuration(0);
+    setIsMuted(false);
+    setIsSpeaker(false);
+  };
+
+  const handleHangUp = () => {
+    setCallStatus('ended');
+    setTimeout(() => {
+      setActiveCall(null);
+    }, 1000);
+  };
+
+  const formatDuration = (sec: number) => {
+    const mins = Math.floor(sec / 60);
+    const secs = sec % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
 
   const filteredVendors = vendors.filter(v => {
     const matchesSearch = v.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -710,20 +782,39 @@ export function VendorManagementTab(props: VendorManagementTabProps) {
       phone: newVendorData.phone,
       cuisine: newVendorData.cuisine,
       address: newVendorData.address,
-      avatar: 'https://images.unsplash.com/photo-1552566626-52f8b828add9?w=150&auto=format&fit=crop&q=80',
+      avatar: newVendorData.shopPhoto || 'https://images.unsplash.com/photo-1552566626-52f8b828add9?w=150&auto=format&fit=crop&q=80',
       commissionRate: newVendorData.commissionRate,
       status: 'Approved', // Auto-approved on add by default
       walletBalance: 0,
       rating: 5.0,
       password: newVendorData.password || 'vend@123',
       isSuspended: false,
+      shopPhoto: newVendorData.shopPhoto || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500&auto=format&fit=crop&q=80',
+      fssaiNumber: newVendorData.fssaiNumber || '10423000' + Math.floor(100000 + Math.random() * 900000),
+      bankAccountNo: newVendorData.bankAccountNo || '309988' + Math.floor(10000 + Math.random() * 90000),
+      bankIfsc: newVendorData.bankIfsc || 'SBIN0003290',
+      bankName: newVendorData.bankName || 'State Bank of India',
       menu: [
         { id: `M-${Math.floor(1000 + Math.random() * 9000)}`, name: 'Special Handi Paneer', price: 250, isAvailable: true, category: 'Main Course' }
       ]
     };
     onAddVendor(freshVendor);
     setAddingVendor(false);
-    setNewVendorData({ name: '', ownerName: '', email: '', phone: '', cuisine: '', address: '', commissionRate: 15, password: '' });
+    setNewVendorData({
+      name: '',
+      ownerName: '',
+      email: '',
+      phone: '',
+      cuisine: '',
+      address: '',
+      commissionRate: 15,
+      password: '',
+      shopPhoto: '',
+      fssaiNumber: '',
+      bankAccountNo: '',
+      bankIfsc: '',
+      bankName: 'State Bank of India'
+    });
   };
 
   const handleToggleItemAvailability = (vendor: Vendor, itemId: string) => {
@@ -762,6 +853,30 @@ export function VendorManagementTab(props: VendorManagementTabProps) {
       ...vendor,
       menu: vendor.menu.filter(i => i.id !== itemId)
     });
+  };
+
+  const startEditingKyc = (vendor: Vendor) => {
+    setEditingKycVendorId(vendor.id);
+    setKycForm({
+      shopPhoto: vendor.shopPhoto || '',
+      fssaiNumber: vendor.fssaiNumber || '',
+      bankAccountNo: vendor.bankAccountNo || '',
+      bankIfsc: vendor.bankIfsc || '',
+      bankName: vendor.bankName || 'State Bank of India'
+    });
+  };
+
+  const saveKycChanges = (vendor: Vendor) => {
+    onUpdateVendor({
+      ...vendor,
+      shopPhoto: kycForm.shopPhoto,
+      avatar: kycForm.shopPhoto || vendor.avatar,
+      fssaiNumber: kycForm.fssaiNumber,
+      bankAccountNo: kycForm.bankAccountNo,
+      bankIfsc: kycForm.bankIfsc,
+      bankName: kycForm.bankName
+    });
+    setEditingKycVendorId(null);
   };
 
   const handleSettleWallet = (vendor: Vendor) => {
@@ -871,7 +986,16 @@ export function VendorManagementTab(props: VendorManagementTabProps) {
                         <span>•</span>
                         <span><strong>Credentials:</strong> ID: <strong className="text-orange-600 font-mono">{vendor.id}</strong> | Pass: <strong className="text-orange-600 font-mono">{vendor.password || 'vend@123'}</strong></span>
                         <span>•</span>
-                        <span><strong>Phone:</strong> {vendor.phone}</span>
+                        <span className="flex items-center gap-1 bg-orange-50 text-orange-800 border border-orange-100 px-2 py-0.5 rounded-lg">
+                          <strong>Phone:</strong> {vendor.phone}
+                          <button
+                            onClick={() => handleInitiateCall(vendor.name, vendor.phone, vendor.avatar, 'Vendor')}
+                            className="p-0.5 hover:bg-orange-100 text-orange-600 rounded transition-all flex items-center justify-center cursor-pointer ml-1"
+                            title="Call Immediately"
+                          >
+                            <Phone size={11} className="fill-orange-600" />
+                          </button>
+                        </span>
                         <span>•</span>
                         <span className="truncate max-w-[200px]"><strong>Loc:</strong> {vendor.address}</span>
                       </div>
@@ -921,6 +1045,13 @@ export function VendorManagementTab(props: VendorManagementTabProps) {
                       ) : (
                         <>
                           <button
+                            onClick={() => handleInitiateCall(vendor.name, vendor.phone, vendor.avatar, 'Vendor')}
+                            className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-1.5"
+                          >
+                            <Phone size={13} className="fill-emerald-700 text-emerald-700" /> Call Immediately
+                          </button>
+
+                          <button
                             onClick={() => handleSettleWallet(vendor)}
                             disabled={vendor.walletBalance <= 0}
                             className="px-3 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 disabled:hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1 border border-slate-200"
@@ -964,88 +1095,225 @@ export function VendorManagementTab(props: VendorManagementTabProps) {
 
                 {/* Expanded Menu Control Panel */}
                 {isExpanded && (
-                  <div className="bg-slate-50/70 border-t border-slate-100 p-5 space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                      <h4 className="font-bold text-slate-800 text-sm">Product Menu Management</h4>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {/* Inline Add Product Form */}
-                        <input
-                          type="text"
-                          placeholder="Product Name..."
-                          value={newItemName}
-                          onChange={(e) => setNewItemName(e.target.value)}
-                          className="p-1.5 border border-slate-200 bg-white rounded-lg text-xs"
-                        />
-                        <input
-                          type="number"
-                          placeholder="Price"
-                          value={newItemPrice}
-                          onChange={(e) => setNewItemPrice(parseInt(e.target.value) || 0)}
-                          className="w-16 p-1.5 border border-slate-200 bg-white rounded-lg text-xs font-mono text-center"
-                        />
-                        <select
-                          value={newItemCategory}
-                          onChange={(e) => setNewItemCategory(e.target.value)}
-                          className="p-1.5 border border-slate-200 bg-white rounded-lg text-xs font-medium text-slate-600"
-                        >
-                          <option value="Main Course">Main Course</option>
-                          <option value="Breakfast">Breakfast</option>
-                          <option value="Chinese">Chinese</option>
-                          <option value="Beverages">Beverages</option>
-                          <option value="Sweets">Sweets</option>
-                        </select>
-                        <button
-                          onClick={() => handleAddMenuItem(vendor)}
-                          className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold flex items-center gap-1"
-                        >
-                          <Plus size={12} /> Add Item
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Products Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {vendor.menu.map(item => (
-                        <div 
-                          key={item.id} 
-                          className="bg-white p-3 rounded-lg border border-slate-150 flex items-center justify-between shadow-3xs"
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <span className={`h-2.5 w-2.5 rounded-full ${item.isAvailable ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                            <div>
-                              <span className="font-semibold text-slate-800 text-xs block">{item.name}</span>
-                              <span className="text-[10px] text-slate-400 block">{item.category}</span>
+                  <div className="bg-slate-50 border-t border-slate-150 p-5 space-y-6">
+                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                      
+                      {/* Left: Corporate KYC & Financials (5 Columns) */}
+                      <div className="xl:col-span-5 bg-white p-5 rounded-xl border border-slate-200/80 shadow-3xs space-y-4">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                          <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                            <span className="text-orange-500">🏢</span> Corporate KYC & Bank Info
+                          </h4>
+                          {editingKycVendorId !== vendor.id ? (
+                            <button
+                              onClick={() => startEditingKyc(vendor)}
+                              className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-all"
+                            >
+                              Edit Info
+                            </button>
+                          ) : (
+                            <div className="flex gap-1.5">
+                              <button
+                                onClick={() => saveKycChanges(vendor)}
+                                className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold transition-all"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={() => setEditingKycVendorId(null)}
+                                className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-xs font-medium transition-all"
+                              >
+                                Cancel
+                              </button>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-1">
-                              <span className="text-slate-400 text-xs font-bold">₹</span>
+                          )}
+                        </div>
+
+                        {editingKycVendorId === vendor.id ? (
+                          // Edit Form
+                          <div className="space-y-3 text-xs">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Shop Photo URL</label>
                               <input
-                                type="number"
-                                value={item.price}
-                                onChange={(e) => handleEditItemPrice(vendor, item.id, parseInt(e.target.value) || 0)}
-                                className="w-14 p-1 border border-slate-200 rounded text-center text-xs font-mono font-bold"
+                                type="text"
+                                value={kycForm.shopPhoto}
+                                onChange={(e) => setKycForm({ ...kycForm, shopPhoto: e.target.value })}
+                                className="w-full p-2 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-orange-500 focus:outline-none"
                               />
                             </div>
-                            <button
-                              onClick={() => handleToggleItemAvailability(vendor, item.id)}
-                              className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${
-                                item.isAvailable 
-                                  ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' 
-                                  : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
-                              }`}
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">FSSAI Certificate Number</label>
+                              <input
+                                type="text"
+                                value={kycForm.fssaiNumber}
+                                onChange={(e) => setKycForm({ ...kycForm, fssaiNumber: e.target.value })}
+                                className="w-full p-2 border border-slate-200 rounded-lg text-xs font-mono focus:ring-1 focus:ring-orange-500 focus:outline-none"
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Bank Name</label>
+                                <input
+                                  type="text"
+                                  value={kycForm.bankName}
+                                  onChange={(e) => setKycForm({ ...kycForm, bankName: e.target.value })}
+                                  className="w-full p-2 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-orange-500 focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">IFSC Code</label>
+                                <input
+                                  type="text"
+                                  value={kycForm.bankIfsc}
+                                  onChange={(e) => setKycForm({ ...kycForm, bankIfsc: e.target.value })}
+                                  className="w-full p-2 border border-slate-200 rounded-lg text-xs font-mono focus:ring-1 focus:ring-orange-500 focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Bank Account Number</label>
+                              <input
+                                type="text"
+                                value={kycForm.bankAccountNo}
+                                onChange={(e) => setKycForm({ ...kycForm, bankAccountNo: e.target.value })}
+                                className="w-full p-2 border border-slate-200 rounded-lg text-xs font-mono focus:ring-1 focus:ring-orange-500 focus:outline-none"
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          // Read Mode
+                          <div className="space-y-4 text-xs">
+                            <div className="flex gap-4 items-start">
+                              <img
+                                src={vendor.shopPhoto || vendor.avatar}
+                                alt="Shop view"
+                                referrerPolicy="no-referrer"
+                                className="h-16 w-24 object-cover rounded-lg border border-slate-100 shadow-3xs shrink-0"
+                              />
+                              <div>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase block">Shop Front Photo</span>
+                                <p className="text-slate-600 mt-1 leading-snug">Official retail storefront photo used in mobile customer applications.</p>
+                              </div>
+                            </div>
+
+                            <div className="p-3 bg-orange-50/50 border border-orange-100/70 rounded-lg">
+                              <span className="text-[10px] font-bold text-orange-700 uppercase block">FSSAI Certificate No.</span>
+                              <p className="font-mono font-bold text-slate-800 text-sm mt-0.5">{vendor.fssaiNumber || 'Pending / Under Verification'}</p>
+                              <span className="text-[9px] text-slate-400 mt-1 block">✓ Valid Food Safety and Standards Authority of India Registration</span>
+                            </div>
+
+                            <div className="p-3 bg-slate-50 border border-slate-200/60 rounded-lg space-y-2">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase block border-b border-slate-200/60 pb-1">Payout Bank Credentials</span>
+                              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                                <div>
+                                  <span className="text-slate-400">Bank Name</span>
+                                  <p className="font-semibold text-slate-700 mt-0.5">{vendor.bankName || 'State Bank of India'}</p>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400">IFSC Code</span>
+                                  <p className="font-mono font-bold text-slate-700 mt-0.5">{vendor.bankIfsc || 'SBIN0003290'}</p>
+                                </div>
+                              </div>
+                              <div className="pt-1.5 border-t border-slate-200/40">
+                                <span className="text-slate-400 text-[10px]">Bank Account Number</span>
+                                <p className="font-mono font-bold text-slate-800 text-sm mt-0.5">xxxx xxxx {vendor.bankAccountNo ? vendor.bankAccountNo.slice(-4) : '2901'}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right: Products Menu Management (7 Columns) */}
+                      <div className="xl:col-span-7 bg-white p-5 rounded-xl border border-slate-200/80 shadow-3xs space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                          <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                            <span className="text-orange-500">🍔</span> Product Menu Management
+                          </h4>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <input
+                              type="text"
+                              placeholder="Name..."
+                              value={newItemName}
+                              onChange={(e) => setNewItemName(e.target.value)}
+                              className="p-1 border border-slate-200 bg-white rounded-lg text-xs w-28"
+                            />
+                            <input
+                              type="number"
+                              placeholder="Price"
+                              value={newItemPrice}
+                              onChange={(e) => setNewItemPrice(parseInt(e.target.value) || 0)}
+                              className="w-12 p-1 border border-slate-200 bg-white rounded-lg text-xs font-mono text-center"
+                            />
+                            <select
+                              value={newItemCategory}
+                              onChange={(e) => setNewItemCategory(e.target.value)}
+                              className="p-1 border border-slate-200 bg-white rounded-lg text-[11px] font-medium text-slate-600"
                             >
-                              {item.isAvailable ? 'In-Stock' : 'OOS'}
-                            </button>
+                              <option value="Main Course">Main Course</option>
+                              <option value="Breakfast">Breakfast</option>
+                              <option value="Chinese">Chinese</option>
+                              <option value="Beverages">Beverages</option>
+                              <option value="Sweets">Sweets</option>
+                            </select>
                             <button
-                              onClick={() => handleDeleteMenuItem(vendor, item.id)}
-                              className="p-1 text-slate-400 hover:text-rose-600 rounded"
+                              onClick={() => handleAddMenuItem(vendor)}
+                              className="px-2.5 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold flex items-center gap-0.5 shrink-0"
                             >
-                              <Trash2 size={13} />
+                              <Plus size={11} /> Add
                             </button>
                           </div>
                         </div>
-                      ))}
+
+                        {/* Products List Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-1">
+                          {vendor.menu.length === 0 ? (
+                            <p className="text-xs text-slate-400 italic text-center col-span-2 py-4">No menu items configured for this store.</p>
+                          ) : (
+                            vendor.menu.map(item => (
+                              <div 
+                                key={item.id} 
+                                className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-150 flex items-center justify-between shadow-3xs"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className={`h-2 w-2 rounded-full ${item.isAvailable ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                                  <div>
+                                    <span className="font-semibold text-slate-800 text-xs block truncate max-w-[110px]">{item.name}</span>
+                                    <span className="text-[9px] text-slate-400 block">{item.category}</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <div className="flex items-center gap-0.5">
+                                    <span className="text-slate-400 text-[10px] font-bold">₹</span>
+                                    <input
+                                      type="number"
+                                      value={item.price}
+                                      onChange={(e) => handleEditItemPrice(vendor, item.id, parseInt(e.target.value) || 0)}
+                                      className="w-11 p-0.5 border border-slate-200 rounded text-center text-xs font-mono font-bold bg-white"
+                                    />
+                                  </div>
+                                  <button
+                                    onClick={() => handleToggleItemAvailability(vendor, item.id)}
+                                    className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all ${
+                                      item.isAvailable 
+                                        ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' 
+                                        : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                                    }`}
+                                  >
+                                    {item.isAvailable ? 'In-Stock' : 'OOS'}
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteMenuItem(vendor, item.id)}
+                                    className="p-1 text-slate-400 hover:text-rose-600 rounded"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
                     </div>
                   </div>
                 )}
@@ -1058,127 +1326,310 @@ export function VendorManagementTab(props: VendorManagementTabProps) {
       {/* Add Vendor Drawer Modal */}
       {addingVendor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-lg p-6 rounded-2xl border border-slate-100 shadow-xl mx-4">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                <Plus size={18} className="text-orange-600" />
+          <div className="bg-white w-full max-w-lg rounded-3xl border border-slate-100 shadow-xl mx-4 flex flex-col max-h-[90vh] md:max-h-[85vh] overflow-hidden">
+            {/* Header with back button */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
+              <button 
+                type="button"
+                onClick={() => setAddingVendor(false)} 
+                className="flex items-center gap-1 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-800 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold shadow-3xs transition-all cursor-pointer"
+              >
+                <ArrowLeft size={14} /> Back
+              </button>
+              <h3 className="font-extrabold text-slate-800 flex items-center gap-1.5 text-xs sm:text-sm">
+                <Plus size={16} className="text-orange-600" />
                 Add New Vendor Store
               </h3>
-              <button onClick={() => setAddingVendor(false)} className="text-slate-400 hover:text-slate-600">
-                <X size={18} />
+              <button 
+                type="button"
+                onClick={() => setAddingVendor(false)} 
+                className="text-slate-400 hover:text-slate-600 bg-slate-150/50 p-1.5 rounded-full transition-all cursor-pointer"
+              >
+                <X size={16} />
               </button>
             </div>
-            <form onSubmit={handleAddSubmit} className="space-y-4 mt-4 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold text-slate-400 uppercase mb-1">Restaurant Name</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Sagar Gaire - Arera"
-                    value={newVendorData.name}
-                    onChange={(e) => setNewVendorData({ ...newVendorData, name: e.target.value })}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  />
+            <form onSubmit={handleAddSubmit} className="flex flex-col flex-1 overflow-hidden">
+              {/* Scrollable Form Fields container */}
+              <div className="p-6 overflow-y-auto flex-1 space-y-4 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-bold text-slate-400 uppercase mb-1">Restaurant Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Sagar Gaire - Arera"
+                      value={newVendorData.name}
+                      onChange={(e) => setNewVendorData({ ...newVendorData, name: e.target.value })}
+                      className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-400 uppercase mb-1">Owner Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Rajesh Gaire"
+                      value={newVendorData.ownerName}
+                      onChange={(e) => setNewVendorData({ ...newVendorData, ownerName: e.target.value })}
+                      className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-bold text-slate-400 uppercase mb-1">Email Address</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="partner@sagargaire.com"
+                      value={newVendorData.email}
+                      onChange={(e) => setNewVendorData({ ...newVendorData, email: e.target.value })}
+                      className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-400 uppercase mb-1">Mobile Number</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="+91 98270 99887"
+                      value={newVendorData.phone}
+                      onChange={(e) => setNewVendorData({ ...newVendorData, phone: e.target.value })}
+                      className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block font-bold text-slate-400 uppercase mb-1">Cuisines Offered</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="South Indian, Desserts"
+                      value={newVendorData.cuisine}
+                      onChange={(e) => setNewVendorData({ ...newVendorData, cuisine: e.target.value })}
+                      className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-400 uppercase mb-1">Commission Rate (%)</label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      max="100"
+                      value={newVendorData.commissionRate}
+                      onChange={(e) => setNewVendorData({ ...newVendorData, commissionRate: parseInt(e.target.value) || 0 })}
+                      className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-400 uppercase mb-1">Setup Password</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. vend@123"
+                      value={newVendorData.password}
+                      onChange={(e) => setNewVendorData({ ...newVendorData, password: e.target.value })}
+                      className="w-full p-2.5 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-400 uppercase mb-1">Owner Name</label>
-                  <input
-                    type="text"
+                  <label className="block font-bold text-slate-400 uppercase mb-1">Store Complete Address</label>
+                  <textarea
                     required
-                    placeholder="Rajesh Gaire"
-                    value={newVendorData.ownerName}
-                    onChange={(e) => setNewVendorData({ ...newVendorData, ownerName: e.target.value })}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    placeholder="Plot 10, Sector E, Arera Colony, Bhopal"
+                    value={newVendorData.address}
+                    onChange={(e) => setNewVendorData({ ...newVendorData, address: e.target.value })}
+                    className="w-full p-2.5 border border-slate-200 rounded-xl text-sm h-14 focus:outline-none focus:ring-2 focus:ring-orange-500"
                   />
+                </div>
+
+                {/* KYC and Financials Section */}
+                <div className="border-t border-slate-150 pt-4 space-y-3">
+                  <h4 className="font-bold text-slate-700 text-xs flex items-center gap-1.5 uppercase tracking-wide">
+                    🏢 Store KYC & Payout Credentials
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-bold text-slate-400 uppercase mb-1">Shop Photo URL</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. https://images.unsplash.com/..."
+                        value={newVendorData.shopPhoto}
+                        onChange={(e) => setNewVendorData({ ...newVendorData, shopPhoto: e.target.value })}
+                        className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-400 uppercase mb-1">FSSAI Certificate No.</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 10423000991823"
+                        value={newVendorData.fssaiNumber}
+                        onChange={(e) => setNewVendorData({ ...newVendorData, fssaiNumber: e.target.value })}
+                        className="w-full p-2.5 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-400 uppercase mb-1">Bank Name</label>
+                      <input
+                        type="text"
+                        placeholder="State Bank of India"
+                        value={newVendorData.bankName}
+                        onChange={(e) => setNewVendorData({ ...newVendorData, bankName: e.target.value })}
+                        className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-400 uppercase mb-1">Bank IFSC Code</label>
+                      <input
+                        type="text"
+                        placeholder="SBIN0003290"
+                        value={newVendorData.bankIfsc}
+                        onChange={(e) => setNewVendorData({ ...newVendorData, bankIfsc: e.target.value })}
+                        className="w-full p-2.5 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-400 uppercase mb-1">Bank Account No.</label>
+                      <input
+                        type="text"
+                        placeholder="30998811234"
+                        value={newVendorData.bankAccountNo}
+                        onChange={(e) => setNewVendorData({ ...newVendorData, bankAccountNo: e.target.value })}
+                        className="w-full p-2.5 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold text-slate-400 uppercase mb-1">Email Address</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="partner@sagargaire.com"
-                    value={newVendorData.email}
-                    onChange={(e) => setNewVendorData({ ...newVendorData, email: e.target.value })}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-400 uppercase mb-1">Mobile Number</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="+91 98270 99887"
-                    value={newVendorData.phone}
-                    onChange={(e) => setNewVendorData({ ...newVendorData, phone: e.target.value })}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block font-bold text-slate-400 uppercase mb-1">Cuisines Offered</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="South Indian, Desserts"
-                    value={newVendorData.cuisine}
-                    onChange={(e) => setNewVendorData({ ...newVendorData, cuisine: e.target.value })}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-400 uppercase mb-1">Commission Rate (%)</label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    max="100"
-                    value={newVendorData.commissionRate}
-                    onChange={(e) => setNewVendorData({ ...newVendorData, commissionRate: parseInt(e.target.value) || 0 })}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-400 uppercase mb-1">Setup Password</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. vend@123"
-                    value={newVendorData.password}
-                    onChange={(e) => setNewVendorData({ ...newVendorData, password: e.target.value })}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block font-bold text-slate-400 uppercase mb-1">Store Complete Address</label>
-                <textarea
-                  required
-                  placeholder="Plot 10, Sector E, Arera Colony, Bhopal"
-                  value={newVendorData.address}
-                  onChange={(e) => setNewVendorData({ ...newVendorData, address: e.target.value })}
-                  className="w-full p-2.5 border border-slate-200 rounded-xl text-sm h-20 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                />
-              </div>
-              <div className="flex justify-end gap-2.5 pt-2">
+
+              {/* Fixed Footer with back & action buttons */}
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center gap-2.5 shrink-0">
                 <button
                   type="button"
                   onClick={() => setAddingVendor(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-500 hover:bg-slate-50 font-semibold"
+                  className="flex items-center gap-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-500 hover:bg-slate-50 hover:text-slate-800 font-bold transition-all cursor-pointer"
                 >
-                  Cancel
+                  <ArrowLeft size={14} /> Back
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-orange-600 text-white rounded-xl text-sm font-semibold hover:bg-orange-700"
-                >
-                  Register Store
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAddingVendor(false)}
+                    className="px-4 py-2 border border-slate-200 rounded-xl text-xs text-slate-500 hover:bg-slate-50 font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-orange-600 text-white rounded-xl text-xs font-bold hover:bg-orange-700 transition-all shadow-3xs cursor-pointer"
+                  >
+                    Register Store
+                  </button>
+                </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Simulated Call Modal */}
+      {activeCall && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md">
+          <div className="bg-slate-950 text-white w-full max-w-sm p-6 rounded-3xl border border-slate-800 shadow-2xl mx-4 relative overflow-hidden animate-fadeIn">
+            {/* Pulsing ring background design */}
+            <div className="absolute inset-0 bg-radial-gradient from-emerald-500/10 to-transparent opacity-50" />
+            
+            {/* Header */}
+            <div className="flex flex-col items-center text-center mt-4 mb-8">
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full font-bold uppercase tracking-widest mb-3">
+                Outgoing {activeCall.role} Call
+              </span>
+              
+              {/* Profile Image with animated ring */}
+              <div className="relative mt-2">
+                <div className={`absolute -inset-4 rounded-full bg-emerald-500/20 blur-sm ${(callStatus === 'connecting' || callStatus === 'ringing') ? 'animate-ping' : ''}`} />
+                <div className="relative">
+                  <img 
+                    src={activeCall.avatar} 
+                    alt={activeCall.name} 
+                    referrerPolicy="no-referrer"
+                    className="h-28 w-28 rounded-full object-cover border-4 border-slate-800 shadow-xl" 
+                  />
+                  {callStatus === 'connected' && (
+                    <span className="absolute bottom-1 right-1 bg-emerald-500 w-4 h-4 rounded-full border-2 border-slate-950 animate-pulse" />
+                  )}
+                </div>
+              </div>
+
+              {/* Name & Phone */}
+              <h3 className="text-xl font-extrabold text-white mt-6 tracking-tight">{activeCall.name}</h3>
+              <p className="text-sm text-slate-400 font-mono mt-1">{activeCall.phone}</p>
+              
+              {/* Call Status and Duration */}
+              <div className="mt-8">
+                {callStatus === 'connecting' && (
+                  <p className="text-xs text-orange-400 font-bold uppercase tracking-wider animate-pulse">Connecting to Network...</p>
+                )}
+                {callStatus === 'ringing' && (
+                  <p className="text-xs text-yellow-400 font-bold uppercase tracking-wider animate-pulse">Ringing phone...</p>
+                )}
+                {callStatus === 'connected' && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-emerald-400 font-bold uppercase tracking-wider">Call Connected</p>
+                    <p className="text-2xl font-bold font-mono tracking-widest text-slate-200 mt-1">{formatDuration(callDuration)}</p>
+                  </div>
+                )}
+                {callStatus === 'ended' && (
+                  <p className="text-xs text-rose-500 font-bold uppercase tracking-wider">Call Ended</p>
+                )}
+              </div>
+            </div>
+
+            {/* In-call simulated controls */}
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              <button
+                type="button"
+                onClick={() => setIsMuted(!isMuted)}
+                className={`py-3 rounded-2xl flex flex-col items-center justify-center gap-1.5 transition-all border ${
+                  isMuted 
+                    ? 'bg-orange-500/20 border-orange-500 text-orange-400' 
+                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-900/50'
+                }`}
+              >
+                <span className="text-sm">🎙️</span>
+                <span className="text-[10px] font-bold uppercase">{isMuted ? 'Muted' : 'Mute'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsSpeaker(!isSpeaker)}
+                className={`py-3 rounded-2xl flex flex-col items-center justify-center gap-1.5 transition-all border ${
+                  isSpeaker 
+                    ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' 
+                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-900/50'
+                }`}
+              >
+                <span className="text-sm">🔊</span>
+                <span className="text-[10px] font-bold uppercase">{isSpeaker ? 'Speaker Active' : 'Speaker'}</span>
+              </button>
+            </div>
+
+            {/* Hangup Button */}
+            <div className="flex justify-center pb-4">
+              <button
+                type="button"
+                onClick={handleHangUp}
+                className="w-16 h-16 bg-rose-600 hover:bg-rose-700 hover:scale-105 active:scale-95 text-white rounded-full flex items-center justify-center transition-all shadow-lg"
+              >
+                <PhoneOff size={24} />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1203,6 +1654,7 @@ export function RiderManagementTab(props: RiderManagementTabProps) {
   const t = TRANSLATIONS[activeLanguage];
   const [searchTerm, setSearchTerm] = useState('');
   const [viewingDocsRider, setViewingDocsRider] = useState<Rider | null>(null);
+  const [activeIdCardRider, setActiveIdCardRider] = useState<Rider | null>(null);
   const [addingRider, setAddingRider] = useState(false);
   const [newRiderData, setNewRiderData] = useState({
     name: '',
@@ -1211,13 +1663,71 @@ export function RiderManagementTab(props: RiderManagementTabProps) {
     vehicleNumber: '',
     license: '',
     aadhar: '',
-    password: ''
+    password: '',
+    avatar: '',
+    bankAccountNo: '',
+    bankIfsc: '',
+    bankName: 'State Bank of India'
   });
 
   const [schedulingRider, setSchedulingRider] = useState<Rider | null>(null);
   const [selectedShifts, setSelectedShifts] = useState<string[]>([]);
   const [customShift, setCustomShift] = useState({ name: 'Custom Shift', start: '09:00 AM', end: '05:00 PM' });
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+
+  // Simulated calling state for riders
+  const [activeCall, setActiveCall] = useState<{ name: string; phone: string; avatar: string; role: string } | null>(null);
+  const [callStatus, setCallStatus] = useState<'connecting' | 'ringing' | 'connected' | 'ended'>('connecting');
+  const [callDuration, setCallDuration] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isSpeaker, setIsSpeaker] = useState(false);
+
+  React.useEffect(() => {
+    let timer: any = null;
+    if (activeCall) {
+      if (callStatus === 'connecting') {
+        timer = setTimeout(() => {
+          setCallStatus('ringing');
+        }, 1500);
+      } else if (callStatus === 'ringing') {
+        timer = setTimeout(() => {
+          setCallStatus('connected');
+          setCallDuration(0);
+        }, 2000);
+      } else if (callStatus === 'connected') {
+        timer = setInterval(() => {
+          setCallDuration(prev => prev + 1);
+        }, 1000);
+      }
+    }
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+        clearInterval(timer);
+      }
+    };
+  }, [activeCall, callStatus]);
+
+  const handleInitiateCall = (name: string, phone: string, avatar: string, role: string) => {
+    setActiveCall({ name, phone, avatar, role });
+    setCallStatus('connecting');
+    setCallDuration(0);
+    setIsMuted(false);
+    setIsSpeaker(false);
+  };
+
+  const handleHangUp = () => {
+    setCallStatus('ended');
+    setTimeout(() => {
+      setActiveCall(null);
+    }, 1000);
+  };
+
+  const formatDuration = (sec: number) => {
+    const mins = Math.floor(sec / 60);
+    const secs = sec % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
 
   // Zomato-like 24/7 1-Hour Gig Slots and pricing
   const gigSlots = [
@@ -1350,15 +1860,20 @@ export function RiderManagementTab(props: RiderManagementTabProps) {
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const mockRiderId = `RDR-${Math.floor(200 + Math.random() * 800)}`;
+    const freshEmployeeId = `TTB-RDR-2026-${Math.floor(1000 + Math.random() * 9000)}`;
     const freshRider: Rider = {
       id: mockRiderId,
       name: newRiderData.name,
       phone: newRiderData.phone,
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+      avatar: newRiderData.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
       status: 'Offline',
       approvalStatus: 'Pending',
       vehicleType: newRiderData.vehicleType,
       vehicleNumber: newRiderData.vehicleNumber || 'N/A',
+      employeeId: freshEmployeeId,
+      bankAccountNo: newRiderData.bankAccountNo || '102930' + Math.floor(100000 + Math.random() * 900000),
+      bankIfsc: newRiderData.bankIfsc || 'SBIN0000382',
+      bankName: newRiderData.bankName || 'State Bank of India',
       documents: {
         license: newRiderData.license || 'LIC-PENDING',
         aadhar: newRiderData.aadhar || 'AADHAR-PENDING',
@@ -1372,7 +1887,19 @@ export function RiderManagementTab(props: RiderManagementTabProps) {
     };
     onAddRider(freshRider);
     setAddingRider(false);
-    setNewRiderData({ name: '', phone: '', vehicleType: 'Motorcycle', vehicleNumber: '', license: '', aadhar: '', password: '' });
+    setNewRiderData({
+      name: '',
+      phone: '',
+      vehicleType: 'Motorcycle',
+      vehicleNumber: '',
+      license: '',
+      aadhar: '',
+      password: '',
+      avatar: '',
+      bankAccountNo: '',
+      bankIfsc: '',
+      bankName: 'State Bank of India'
+    });
   };
 
   return (
@@ -1748,6 +2275,11 @@ export function RiderManagementTab(props: RiderManagementTabProps) {
                     <div className="flex items-center gap-2">
                       <h3 className="font-bold text-slate-800 text-sm">{rider.name}</h3>
                       <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded font-mono text-slate-500 font-bold">{rider.id}</span>
+                      {rider.employeeId && (
+                        <span className="text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-100 px-1.5 py-0.5 rounded font-mono font-bold uppercase tracking-wide">
+                          {rider.employeeId}
+                        </span>
+                      )}
                       {rider.isSuspended && (
                         <span className="text-[10px] bg-rose-50 text-rose-600 border border-rose-200 px-1.5 py-0.5 rounded font-bold uppercase animate-pulse">
                           Suspended 🔥
@@ -1755,7 +2287,16 @@ export function RiderManagementTab(props: RiderManagementTabProps) {
                       )}
                     </div>
                     <div className="flex flex-col text-[10px] text-slate-400 font-medium mt-1 gap-0.5">
-                      <span><strong>Phone:</strong> {rider.phone}</span>
+                      <span className="flex items-center gap-1 bg-indigo-50 text-indigo-800 border border-indigo-100 px-1.5 py-0.5 rounded-md max-w-max mt-0.5 mb-1">
+                        <strong>Phone:</strong> {rider.phone}
+                        <button
+                          onClick={() => handleInitiateCall(rider.name, rider.phone, rider.avatar, 'Rider')}
+                          className="p-0.5 hover:bg-indigo-150 text-indigo-600 rounded transition-all flex items-center justify-center cursor-pointer ml-1"
+                          title="Call Immediately"
+                        >
+                          <Phone size={10} className="fill-indigo-600" />
+                        </button>
+                      </span>
                       <span><strong>Credentials:</strong> ID: <strong className="text-indigo-600 font-mono">{rider.id}</strong> | Pass: <strong className="text-indigo-600 font-mono">{rider.password || 'rider@123'}</strong></span>
                     </div>
                   </div>
@@ -1798,6 +2339,22 @@ export function RiderManagementTab(props: RiderManagementTabProps) {
                 </div>
               </div>
 
+              {/* Rider Payout Bank Credentials */}
+              <div className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-150 text-[10px] space-y-1">
+                <span className="font-bold text-slate-400 uppercase tracking-wider block">Company Payout Bank Details</span>
+                <div className="grid grid-cols-2 gap-x-2 text-slate-600 font-medium">
+                  <div>
+                    <span className="text-slate-400">Bank:</span> {rider.bankName || 'State Bank of India'}
+                  </div>
+                  <div>
+                    <span className="text-slate-400">IFSC:</span> <span className="font-mono font-bold">{rider.bankIfsc || 'SBIN0000382'}</span>
+                  </div>
+                  <div className="col-span-2 pt-0.5 border-t border-slate-200/50 mt-0.5">
+                    <span className="text-slate-400">Account No:</span> <span className="font-mono font-bold text-slate-800">xxxx xxxx {rider.bankAccountNo ? rider.bankAccountNo.slice(-4) : '2901'}</span>
+                  </div>
+                </div>
+              </div>
+
               {/* Scheduled Shifts Display */}
               <div className="bg-indigo-50/40 p-3 rounded-lg border border-indigo-100/50 text-xs">
                 <div className="flex items-center justify-between mb-2">
@@ -1827,12 +2384,24 @@ export function RiderManagementTab(props: RiderManagementTabProps) {
               </div>
 
               {/* Interactive bottom buttons */}
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 <button
                   onClick={() => setViewingDocsRider(rider)}
-                  className="flex-1 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-bold flex items-center justify-center gap-1"
+                  className="flex-1 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-[11px] font-bold flex items-center justify-center gap-0.5 shrink-0"
                 >
-                  <FileText size={13} /> Review Docs
+                  <FileText size={11} /> Review Docs
+                </button>
+                <button
+                  onClick={() => handleInitiateCall(rider.name, rider.phone, rider.avatar, 'Rider')}
+                  className="flex-1 py-1.5 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-700 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 shrink-0"
+                >
+                  <Phone size={11} className="fill-emerald-700 text-emerald-700" /> Call Immediately
+                </button>
+                <button
+                  onClick={() => setActiveIdCardRider(rider)}
+                  className="flex-1 py-1.5 bg-orange-50 border border-orange-200 hover:bg-orange-100 text-orange-700 rounded-lg text-[11px] font-extrabold flex items-center justify-center gap-0.5 shrink-0"
+                >
+                  🆔 Company ID
                 </button>
                 <button
                   onClick={() => {
@@ -1841,21 +2410,21 @@ export function RiderManagementTab(props: RiderManagementTabProps) {
                       isSuspended: !rider.isSuspended
                     });
                   }}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 border transition-all ${
+                  className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold flex items-center justify-center gap-0.5 border transition-all shrink-0 ${
                     rider.isSuspended
                       ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700'
                       : 'bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-700'
                   }`}
                 >
-                  <UserX size={13} />
+                  <UserX size={11} />
                   {rider.isSuspended ? 'Reactivate' : 'Suspend'}
                 </button>
                 {!isApproved && (
                   <button
                     onClick={() => handleApproveDocs(rider)}
-                    className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1"
+                    className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold flex items-center justify-center gap-0.5 shrink-0"
                   >
-                    <Check size={13} /> Fast Approve
+                    <Check size={11} /> Approve
                   </button>
                 )}
               </div>
@@ -1916,116 +2485,292 @@ export function RiderManagementTab(props: RiderManagementTabProps) {
         </div>
       )}
 
+      {/* Rider Official ID Card Badge Modal */}
+      {activeIdCardRider && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs">
+          <div className="bg-slate-900 text-white w-full max-w-sm p-6 rounded-3xl border border-slate-800 shadow-2xl mx-4 relative overflow-hidden animate-fadeIn">
+            {/* Background design elements */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-600/10 rounded-full blur-2xl -mr-8 -mt-8" />
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-600/10 rounded-full blur-2xl -ml-8 -mb-8" />
+
+            <div className="flex justify-between items-center pb-4 border-b border-slate-800 relative z-10">
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Official Identity Badge</span>
+              <button 
+                onClick={() => setActiveIdCardRider(null)} 
+                className="text-slate-400 hover:text-white bg-slate-800 p-1.5 rounded-full transition-all"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Virtual Badge Body */}
+            <div className="my-6 flex flex-col items-center text-center relative z-10">
+              {/* Card Container with custom border */}
+              <div className="bg-gradient-to-b from-slate-950 to-slate-900 border-2 border-orange-500/30 rounded-2xl p-5 w-full shadow-lg relative overflow-hidden">
+                {/* ID Badge Ribbon/Header */}
+                <div className="bg-orange-600 text-white py-1 px-3 rounded-full text-[10px] font-extrabold uppercase tracking-wider inline-block mb-4 shadow-3xs">
+                  Ting Tong Bhopal
+                </div>
+                
+                {/* Rider Photo Frame */}
+                <div className="relative inline-block mb-3">
+                  <img 
+                    src={activeIdCardRider.avatar} 
+                    alt={activeIdCardRider.name} 
+                    referrerPolicy="no-referrer"
+                    className="h-28 w-28 rounded-2xl object-cover border-4 border-slate-800 shadow-md mx-auto" 
+                  />
+                  <span className="absolute bottom-1 right-1 bg-emerald-500 w-3.5 h-3.5 rounded-full border-2 border-slate-950 animate-pulse" title="Duty Active Status" />
+                </div>
+
+                {/* Rider Name and Designation */}
+                <h4 className="text-base font-extrabold text-white tracking-tight">{activeIdCardRider.name}</h4>
+                <p className="text-[10px] font-extrabold text-orange-400 tracking-widest uppercase mt-1">Rider Delivery Executive</p>
+
+                {/* Grid Info */}
+                <div className="grid grid-cols-2 gap-3 mt-5 text-[10px] bg-slate-900/60 p-3 rounded-xl border border-slate-800/80 text-left font-mono">
+                  <div>
+                    <span className="text-slate-400 block text-[8px] uppercase font-bold">Company ID</span>
+                    <span className="text-white font-extrabold">{activeIdCardRider.employeeId || `TTB-RDR-2026-${activeIdCardRider.id}`}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[8px] uppercase font-bold">Rider ID</span>
+                    <span className="text-white font-extrabold">{activeIdCardRider.id}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[8px] uppercase font-bold">Vehicle Reg No.</span>
+                    <span className="text-white font-bold truncate block">{activeIdCardRider.vehicleNumber}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[8px] uppercase font-bold">Registered Mobile</span>
+                    <span className="text-white font-bold">{activeIdCardRider.phone}</span>
+                  </div>
+                </div>
+
+                {/* Barcode Simulator / Signature block */}
+                <div className="mt-5 pt-3 border-t border-slate-850 flex flex-col items-center">
+                  <div className="w-full bg-white h-7 flex items-center justify-between px-2 py-1 rounded opacity-90">
+                    {/* Fake Barcode Lines */}
+                    <div className="flex gap-0.5 h-full w-full justify-center">
+                      {[2,4,1,3,2,1,4,2,3,1,2,4,1,3,2,1,2,3,4,1,2,3].map((val, i) => (
+                        <div key={i} className="bg-black" style={{ width: `${val}px` }} />
+                      ))}
+                    </div>
+                  </div>
+                  <span className="text-[8px] font-mono text-slate-500 mt-1 uppercase tracking-widest">FOODS DELIVERY LOGISTICS NETWORK</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Print and Actions */}
+            <div className="flex justify-between items-center gap-3 relative z-10 pt-2 border-t border-slate-800">
+              <span className="text-[10px] text-slate-400 font-medium">Auto-generated upon verification.</span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveIdCardRider(null)}
+                  className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-bold text-slate-300 transition-all"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-4 py-1.5 bg-orange-600 hover:bg-orange-700 rounded-xl text-xs font-bold text-white transition-all shadow-md"
+                >
+                  Print Card
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add Rider Drawer Modal */}
       {addingRider && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-md p-6 rounded-2xl border border-slate-100 shadow-xl mx-4">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                <Plus size={18} className="text-emerald-600" />
+          <div className="bg-white w-full max-w-lg rounded-3xl border border-slate-100 shadow-xl mx-4 flex flex-col max-h-[90vh] md:max-h-[85vh] overflow-hidden">
+            {/* Header with back button */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
+              <button 
+                type="button"
+                onClick={() => setAddingRider(false)} 
+                className="flex items-center gap-1 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-800 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold shadow-3xs transition-all cursor-pointer"
+              >
+                <ArrowLeft size={14} /> Back
+              </button>
+              <h3 className="font-extrabold text-slate-800 flex items-center gap-1.5 text-xs sm:text-sm">
+                <Plus size={16} className="text-emerald-600" />
                 Add New Rider Partner
               </h3>
-              <button onClick={() => setAddingRider(false)} className="text-slate-400 hover:text-slate-600">
-                <X size={18} />
+              <button 
+                type="button"
+                onClick={() => setAddingRider(false)} 
+                className="text-slate-400 hover:text-slate-600 bg-slate-150/50 p-1.5 rounded-full transition-all cursor-pointer"
+              >
+                <X size={16} />
               </button>
             </div>
-            <form onSubmit={handleAddSubmit} className="space-y-4 mt-4 text-xs">
-              <div>
-                <label className="block font-bold text-slate-400 uppercase mb-1">Rider Full Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Rahul Singh Yadav"
-                  value={newRiderData.name}
-                  onChange={(e) => setNewRiderData({ ...newRiderData, name: e.target.value })}
-                  className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-slate-400 uppercase mb-1">Mobile Number</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="+91 99999 88888"
-                  value={newRiderData.phone}
-                  onChange={(e) => setNewRiderData({ ...newRiderData, phone: e.target.value })}
-                  className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={handleAddSubmit} className="flex flex-col flex-1 overflow-hidden">
+              {/* Scrollable Form Fields container */}
+              <div className="p-6 overflow-y-auto flex-1 space-y-4 text-xs">
                 <div>
-                  <label className="block font-bold text-slate-400 uppercase mb-1">Vehicle Type</label>
-                  <select
-                    value={newRiderData.vehicleType}
-                    onChange={(e) => setNewRiderData({ ...newRiderData, vehicleType: e.target.value })}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  >
-                    <option value="Motorcycle">Motorcycle</option>
-                    <option value="Scooter (Electric)">Scooter (Electric)</option>
-                    <option value="Bicycle">Bicycle</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-400 uppercase mb-1">Vehicle Number</label>
+                  <label className="block font-bold text-slate-400 uppercase mb-1">Rider Full Name</label>
                   <input
                     type="text"
                     required
-                    placeholder="MP-04-AB-1234"
-                    value={newRiderData.vehicleNumber}
-                    onChange={(e) => setNewRiderData({ ...newRiderData, vehicleNumber: e.target.value })}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold text-slate-400 uppercase mb-1">Driving License No.</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="DL-882910"
-                    value={newRiderData.license}
-                    onChange={(e) => setNewRiderData({ ...newRiderData, license: e.target.value })}
+                    placeholder="Rahul Singh Yadav"
+                    value={newRiderData.name}
+                    onChange={(e) => setNewRiderData({ ...newRiderData, name: e.target.value })}
                     className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-400 uppercase mb-1">Aadhar Card No.</label>
+                  <label className="block font-bold text-slate-400 uppercase mb-1">Mobile Number</label>
                   <input
                     type="text"
                     required
-                    placeholder="AADHAR-1234-5678-9012"
-                    value={newRiderData.aadhar}
-                    onChange={(e) => setNewRiderData({ ...newRiderData, aadhar: e.target.value })}
+                    placeholder="+91 99999 88888"
+                    value={newRiderData.phone}
+                    onChange={(e) => setNewRiderData({ ...newRiderData, phone: e.target.value })}
                     className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-bold text-slate-400 uppercase mb-1">Vehicle Type</label>
+                    <select
+                      value={newRiderData.vehicleType}
+                      onChange={(e) => setNewRiderData({ ...newRiderData, vehicleType: e.target.value })}
+                      className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    >
+                      <option value="Motorcycle">Motorcycle</option>
+                      <option value="Scooter (Electric)">Scooter (Electric)</option>
+                      <option value="Bicycle">Bicycle</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-400 uppercase mb-1">Vehicle Number</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="MP-04-AB-1234"
+                      value={newRiderData.vehicleNumber}
+                      onChange={(e) => setNewRiderData({ ...newRiderData, vehicleNumber: e.target.value })}
+                      className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-bold text-slate-400 uppercase mb-1">Driving License No.</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="DL-882910"
+                      value={newRiderData.license}
+                      onChange={(e) => setNewRiderData({ ...newRiderData, license: e.target.value })}
+                      className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-400 uppercase mb-1">Aadhar Card No.</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="AADHAR-1234-5678-9012"
+                      value={newRiderData.aadhar}
+                      onChange={(e) => setNewRiderData({ ...newRiderData, aadhar: e.target.value })}
+                      className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-400 uppercase mb-1">Setup Password</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. rider@123"
+                    value={newRiderData.password}
+                    onChange={(e) => setNewRiderData({ ...newRiderData, password: e.target.value })}
+                    className="w-full p-2.5 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {/* Rider Photo & Bank Details */}
+                <div className="border-t border-slate-150 pt-4 space-y-3">
+                  <h4 className="font-bold text-slate-700 text-xs flex items-center gap-1.5 uppercase tracking-wide">
+                    🚲 Rider Photo & Payout Credentials
+                  </h4>
+                  <div>
+                    <label className="block font-bold text-slate-400 uppercase mb-1">Rider Photo URL</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. https://images.unsplash.com/..."
+                      value={newRiderData.avatar}
+                      onChange={(e) => setNewRiderData({ ...newRiderData, avatar: e.target.value })}
+                      className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-400 uppercase mb-1">Bank Name</label>
+                      <input
+                        type="text"
+                        placeholder="SBI"
+                        value={newRiderData.bankName}
+                        onChange={(e) => setNewRiderData({ ...newRiderData, bankName: e.target.value })}
+                        className="w-full p-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-400 uppercase mb-1">Bank IFSC Code</label>
+                      <input
+                        type="text"
+                        placeholder="SBIN0000382"
+                        value={newRiderData.bankIfsc}
+                        onChange={(e) => setNewRiderData({ ...newRiderData, bankIfsc: e.target.value })}
+                        className="w-full p-2.5 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-400 uppercase mb-1">Bank Account No.</label>
+                      <input
+                        type="text"
+                        placeholder="1029302910"
+                        value={newRiderData.bankAccountNo}
+                        onChange={(e) => setNewRiderData({ ...newRiderData, bankAccountNo: e.target.value })}
+                        className="w-full p-2.5 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block font-bold text-slate-400 uppercase mb-1">Setup Password</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. rider@123"
-                  value={newRiderData.password}
-                  onChange={(e) => setNewRiderData({ ...newRiderData, password: e.target.value })}
-                  className="w-full p-2.5 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-              <div className="flex justify-end gap-2.5 pt-2">
+
+              {/* Fixed Footer with back & action buttons */}
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center gap-2.5 shrink-0">
                 <button
                   type="button"
                   onClick={() => setAddingRider(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-500 hover:bg-slate-50 font-semibold"
+                  className="flex items-center gap-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-500 hover:bg-slate-50 hover:text-slate-800 font-bold transition-all cursor-pointer"
                 >
-                  Cancel
+                  <ArrowLeft size={14} /> Back
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700"
-                >
-                  Register Rider (Pending DL KYC)
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAddingRider(false)}
+                    className="px-4 py-2 border border-slate-200 rounded-xl text-xs text-slate-500 hover:bg-slate-50 font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all shadow-3xs cursor-pointer"
+                  >
+                    Register Rider (Pending DL KYC)
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -2194,6 +2939,101 @@ export function RiderManagementTab(props: RiderManagementTabProps) {
                   Save Shift Schedule
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Simulated Rider Call Modal */}
+      {activeCall && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md">
+          <div className="bg-slate-950 text-white w-full max-w-sm p-6 rounded-3xl border border-slate-800 shadow-2xl mx-4 relative overflow-hidden animate-fadeIn">
+            {/* Pulsing ring background design */}
+            <div className="absolute inset-0 bg-radial-gradient from-indigo-500/10 to-transparent opacity-50" />
+            
+            {/* Header */}
+            <div className="flex flex-col items-center text-center mt-4 mb-8">
+              <span className="text-[10px] bg-indigo-50/10 text-indigo-400 border border-indigo-550/30 px-3 py-1 rounded-full font-bold uppercase tracking-widest mb-3">
+                Outgoing {activeCall.role} Call
+              </span>
+              
+              {/* Profile Image with animated ring */}
+              <div className="relative mt-2">
+                <div className={`absolute -inset-4 rounded-full bg-indigo-500/20 blur-sm ${(callStatus === 'connecting' || callStatus === 'ringing') ? 'animate-ping' : ''}`} />
+                <div className="relative">
+                  <img 
+                    src={activeCall.avatar} 
+                    alt={activeCall.name} 
+                    referrerPolicy="no-referrer"
+                    className="h-28 w-28 rounded-full object-cover border-4 border-slate-800 shadow-xl" 
+                  />
+                  {callStatus === 'connected' && (
+                    <span className="absolute bottom-1 right-1 bg-emerald-500 w-4 h-4 rounded-full border-2 border-slate-950 animate-pulse" />
+                  )}
+                </div>
+              </div>
+
+              {/* Name & Phone */}
+              <h3 className="text-xl font-extrabold text-white mt-6 tracking-tight">{activeCall.name}</h3>
+              <p className="text-sm text-slate-400 font-mono mt-1">{activeCall.phone}</p>
+              
+              {/* Call Status and Duration */}
+              <div className="mt-8">
+                {callStatus === 'connecting' && (
+                  <p className="text-xs text-orange-400 font-bold uppercase tracking-wider animate-pulse">Connecting to Network...</p>
+                )}
+                {callStatus === 'ringing' && (
+                  <p className="text-xs text-yellow-400 font-bold uppercase tracking-wider animate-pulse">Ringing phone...</p>
+                )}
+                {callStatus === 'connected' && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-emerald-400 font-bold uppercase tracking-wider">Call Connected</p>
+                    <p className="text-2xl font-bold font-mono tracking-widest text-slate-200 mt-1">{formatDuration(callDuration)}</p>
+                  </div>
+                )}
+                {callStatus === 'ended' && (
+                  <p className="text-xs text-rose-500 font-bold uppercase tracking-wider">Call Ended</p>
+                )}
+              </div>
+            </div>
+
+            {/* In-call simulated controls */}
+            <div className="grid grid-cols-2 gap-4 mb-8 text-slate-400">
+              <button
+                type="button"
+                onClick={() => setIsMuted(!isMuted)}
+                className={`py-3 rounded-2xl flex flex-col items-center justify-center gap-1.5 transition-all border ${
+                  isMuted 
+                    ? 'bg-orange-500/20 border-orange-500 text-orange-400' 
+                    : 'bg-slate-900 border-slate-800 hover:text-white hover:bg-slate-900/50'
+                }`}
+              >
+                <span className="text-sm">🎙️</span>
+                <span className="text-[10px] font-bold uppercase">{isMuted ? 'Muted' : 'Mute'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsSpeaker(!isSpeaker)}
+                className={`py-3 rounded-2xl flex flex-col items-center justify-center gap-1.5 transition-all border ${
+                  isSpeaker 
+                    ? 'bg-indigo-500/20 border-indigo-500 text-indigo-400' 
+                    : 'bg-slate-900 border-slate-800 hover:text-white hover:bg-slate-900/50'
+                }`}
+              >
+                <span className="text-sm">🔊</span>
+                <span className="text-[10px] font-bold uppercase">{isSpeaker ? 'Speaker Active' : 'Speaker'}</span>
+              </button>
+            </div>
+
+            {/* Hangup Button */}
+            <div className="flex justify-center pb-4">
+              <button
+                type="button"
+                onClick={handleHangUp}
+                className="w-16 h-16 bg-rose-600 hover:bg-rose-700 hover:scale-105 active:scale-95 text-white rounded-full flex items-center justify-center transition-all shadow-lg"
+              >
+                <PhoneOff size={24} />
+              </button>
             </div>
           </div>
         </div>

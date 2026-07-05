@@ -233,7 +233,7 @@ export const TRANSLATIONS: Record<Language, TranslationSet> = {
     auditTrail: 'Administrative Action Audit Trail',
     auditTrailDesc: 'Verifiable trace logs of active toggles, commission rate adjustments, status flags, and security controls',
     languageAndLocalization: 'Language & Localization Options',
-    languageAndLocalizationDesc: 'Choose your preferred language for the Bhopal Express Logistics and Admin portal.'
+    languageAndLocalizationDesc: 'Choose your preferred language for the Ting Tong Bhopal Foods Delivery and Admin portal.'
   },
   hi: {
     dashboard: 'डैशबोर्ड',
@@ -344,7 +344,7 @@ export const TRANSLATIONS: Record<Language, TranslationSet> = {
     auditTrail: 'प्रशासनिक कार्रवाई ऑडिट ट्रेल',
     auditTrailDesc: 'सक्रिय टॉगल, कमीशन दर समायोजन, स्थिति झंडे, और सुरक्षा नियंत्रणों के सत्यापन योग्य ट्रेस लॉग',
     languageAndLocalization: 'भाषा और स्थानीयकरण विकल्प',
-    languageAndLocalizationDesc: 'भोपाल एक्सप्रेस लॉजिस्टिक्स और एडमिन पोर्टल के लिए अपनी पसंदीदा भाषा चुनें। पूरा सिस्टम तुरंत अपडेट हो जाएगा।'
+    languageAndLocalizationDesc: 'टिंग टोंग भोपाल फूड्स डिलीवरी और एडमिन पोर्टल के लिए अपनी पसंदीदा भाषा चुनें। पूरा सिस्टम तुरंत अपडेट हो जाएगा।'
   }
 };
 

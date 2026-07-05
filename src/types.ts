@@ -37,6 +37,11 @@ export interface Vendor {
   menu: MenuItem[];
   password?: string;
   isSuspended?: boolean;
+  shopPhoto?: string;
+  fssaiNumber?: string;
+  bankAccountNo?: string;
+  bankIfsc?: string;
+  bankName?: string;
 }
 
 export interface Rider {
@@ -59,6 +64,10 @@ export interface Rider {
   password?: string;
   isSuspended?: boolean;
   assignedShifts?: string[];
+  bankAccountNo?: string;
+  bankIfsc?: string;
+  bankName?: string;
+  employeeId?: string;
 }
 
 export type OrderStatus = 'New' | 'Accepted' | 'Preparing' | 'Ready' | 'Picked' | 'Delivered' | 'Cancelled' | 'Refunded';
