@@ -423,17 +423,17 @@ export default function DashboardTab(props: DashboardTabProps) {
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white flex flex-col sm:flex-row sm:items-center gap-x-3 gap-y-1.5 leading-none">
                 <span>{activeLanguage === 'hi' ? 'टिंग टोंग भोपाल' : 'Ting Tong Bhopal'}</span>
                 <span className="text-[9px] sm:text-[10px] font-black px-2.5 py-1 bg-indigo-500/15 border border-indigo-500/30 rounded-full text-indigo-300 uppercase tracking-widest font-mono shrink-0 select-none">
-                  {activeLanguage === 'hi' ? 'एंटरप्राइज लॉजिस्टिक्स' : 'Enterprise Logistics'}
+                  {activeLanguage === 'hi' ? 'एंटरप्राइज फ़ूड डिलीवरी' : 'Enterprise Food Delivery'}
                 </span>
               </h1>
               <p className="text-[10px] sm:text-xs font-extrabold text-indigo-400 uppercase tracking-widest font-mono">
-                {activeLanguage === 'hi' ? 'भोपाल का प्रीमियम मल्टी-ज़ोन डिस्पैच और डिलीवरी ग्रिड' : 'Bhopal’s Premier Multi-Zone Dispatch & Delivery Grid'}
+                {activeLanguage === 'hi' ? 'भोपाल का प्रीमियम मल्टी-ज़ोन डिस्पैच और फ़ूड डिलीवरी ग्रिड' : 'Bhopal’s Premier Multi-Zone Dispatch & Food Delivery Grid'}
               </p>
             </div>
             <p className="text-xs sm:text-sm text-slate-400 max-w-xl leading-relaxed">
               {activeLanguage === 'hi' 
-                ? 'भोपाल के प्रमुख डिलीवरी बेड़े नेटवर्क के लिए वास्तविक समय की निगरानी, मर्चेंट कमीशन भुगतान, राइडर निपटान और त्वरित डिजिटल वॉलेट नियंत्रण।' 
-                : "Real-time monitoring, merchant commission payouts, rider settlements, and instant digital wallet controls for Bhopal's premier delivery fleet network."}
+                ? 'भोपाल के प्रमुख फ़ूड डिलीवरी बेड़े नेटवर्क के लिए वास्तविक समय की निगरानी, मर्चेंट कमीशन भुगतान, राइडर निपटान और त्वरित डिजिटल वॉलेट नियंत्रण।' 
+                : "Real-time monitoring, merchant commission payouts, rider settlements, and instant digital wallet controls for Bhopal's premier food delivery network."}
             </p>
           </div>
           
