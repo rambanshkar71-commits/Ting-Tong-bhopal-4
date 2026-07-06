@@ -172,8 +172,8 @@ export default function AuthPortal({ onLoginSuccess, addAuditLog }: AuthPortalPr
           <div className="inline-flex p-3 bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 rounded-2xl mb-3 shadow-inner">
             <Shield size={28} className="animate-pulse" />
           </div>
-          <h1 className="text-xl font-extrabold text-white tracking-tight">TING TONG BHOPAL</h1>
-          <p className="text-[11px] text-slate-400 uppercase tracking-widest mt-1 font-semibold">Foods Delivery</p>
+          <h1 className="text-2xl font-black text-white tracking-tight uppercase">TING TONG BHOPAL</h1>
+          <p className="text-[10px] text-indigo-400 uppercase tracking-widest mt-1.5 font-extrabold">Enterprise Logistics Control Panel</p>
         </div>
 
         {/* Tab Switcher (Login / Register Admin) */}
